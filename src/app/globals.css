@@ -49,5 +49,14 @@ body {
 }
 
 .logo-mark-g {
-  -webkit-text-stroke: 1px #ffffff;
+  -webkit-text-stroke: 0.5px #ffffff;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }

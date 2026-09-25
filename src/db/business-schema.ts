@@ -37,13 +37,20 @@ export const employees = pgTable(
   "employees",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    employeeCode: text("employee_code")
+      .notNull()
+      .unique()
+      .default(sql`'EMP-' || lpad(nextval('employee_code_seq')::text, 4, '0')`),
     authUserId: text("auth_user_id").references(() => user.id, {
       onDelete: "set null",
     }),
     prefix: text("prefix"),
+    nickname: text("nickname"),
     firstName: text("first_name").notNull(),
     lastName: text("last_name").notNull(),
+    englishName: text("english_name"),
     companyEmail: text("company_email").notNull().unique(),
+    phone: text("phone"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -96,9 +103,16 @@ export const positionHistories = pgTable(
     contractId: uuid("contract_id")
       .notNull()
       .references(() => employmentContracts.id, { onDelete: "cascade" }),
+    departmentId: uuid("department_id")
+      .notNull()
+      .references(() => departments.id, { onDelete: "restrict" }),
     positionId: uuid("position_id")
       .notNull()
       .references(() => positions.id, { onDelete: "restrict" }      ),
+    supervisorEmployeeId: uuid("supervisor_employee_id").references(
+      () => employees.id,
+      { onDelete: "set null" },
+    ),
       effectiveFrom: date("effective_from").notNull(),
       effectiveTo: date("effective_to"),
   },

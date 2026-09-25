@@ -15,6 +15,20 @@
       "when": 1790157348574,
       "tag": "0001_lowly_hardball",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790313722636,
+      "tag": "0002_flashy_bishop",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790313962355,
+      "tag": "0003_bored_swordsman",
+      "breakpoints": true
     }
   ]
 }

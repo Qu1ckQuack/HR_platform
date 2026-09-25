@@ -60,9 +60,17 @@ export const positionHistoryRelations = relations(
       fields: [positionHistories.contractId],
       references: [employmentContracts.id],
     }),
+    department: one(departments, {
+      fields: [positionHistories.departmentId],
+      references: [departments.id],
+    }),
     position: one(positions, {
       fields: [positionHistories.positionId],
       references: [positions.id],
+    }),
+    supervisor: one(employees, {
+      fields: [positionHistories.supervisorEmployeeId],
+      references: [employees.id],
     }),
   }),
 );

@@ -150,6 +150,7 @@ async function main() {
           await tx
             .insert(employees)
             .values({
+              employeeCode: `EMP-${String(index + 1).padStart(4, "0")}`,
               prefix,
               firstName,
               lastName,
@@ -190,6 +191,13 @@ async function main() {
         )[0];
       if (!employeeContract) throw new Error(`Unable to create contract for ${companyEmail}.`);
 
+      const [position] = await tx
+        .select({ departmentId: positions.departmentId })
+        .from(positions)
+        .where(eq(positions.id, positionId))
+        .limit(1);
+      if (!position) throw new Error(`Unable to find position for ${companyEmail}.`);
+
       const history = await tx
         .select()
         .from(positionHistories)
@@ -198,13 +206,14 @@ async function main() {
       if (!history[0]) {
         await tx.insert(positionHistories).values({
           contractId: employeeContract.id,
+          departmentId: position.departmentId,
           positionId,
           effectiveFrom: "2024-01-15",
         });
       } else {
         await tx
           .update(positionHistories)
-          .set({ positionId })
+          .set({ departmentId: position.departmentId, positionId })
           .where(eq(positionHistories.id, history[0].id));
       }
 

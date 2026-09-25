@@ -1,5 +1,14 @@
 # Work log
 
+## 2026-09-25 - Formatting employee identity inputs
+
+- Added live formatting for 13-digit citizen IDs as `x-xxxx-xxxxx-xx-x` and
+  phone numbers as `xxx-xxx-xxxx`.
+- Enforced the citizen-ID format in the employee PATCH API.
+- Changed personal-info layout to three fields on the first row and two fields
+  from the next row onward; expanded the supervisor field across the row.
+- Verification: diagnostics, `npm run lint`, and `npm run build` pass.
+
 ## 2026-09-24 - Aligning illustration text with feature labels
 
 - Added a shared inner width for the company branding, descriptive text, and
@@ -89,6 +98,23 @@
 - Split the GH mark into individual letters so the white WebKit outline applies
   only to G while H remains unoutlined.
 - Verification: `npm run lint`.
+
+## 2026-09-25 - Matching right-side logo layout
+
+- Matched the login form logo to the left-side logo with the same stacked company
+  text, spacing, and GH mark positioning.
+- Verification: `npm run lint`.
+
+## 2026-09-25 - Adding database-backed employee editing
+
+- Added stable `EMP-####` employee codes, editable employee/personal fields,
+  department and supervisor position-history fields, and PostgreSQL backfill/
+  sequence migrations.
+- Replaced the placeholder edit modal with required controlled fields, hidden
+  scrollbar overflow, database-loaded dropdowns, and transactional PATCH saves.
+- Verification: migrations applied, employee seed completed, live list/options
+  API smoke test passed, required-field PATCH validation passed, `npm run lint`,
+  and `npm run build` passed.
 
 ## 2026-09-24 - Preventing employee page layout shifts
 

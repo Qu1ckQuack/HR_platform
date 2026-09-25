@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -43,6 +43,7 @@ export default function EmployeePage() {
   const [isFocused, setIsFocused] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [refreshToken, setRefreshToken] = useState(0);
 
   useEffect(() => {
     let isCurrent = true;
@@ -96,7 +97,7 @@ export default function EmployeePage() {
     return () => {
       isCurrent = false;
     };
-  }, [page, search, statusFilter]);
+  }, [page, search, statusFilter, refreshToken]);
 
   const open = (employee: Employee, mode: "edit" | "view") => {
     setSelected(employee);
@@ -369,7 +370,14 @@ export default function EmployeePage() {
         </section>
       </section>
       {modal && selected && (
-        <EditModal employee={selected} close={() => setModal(false)} />
+        <EditModal
+          employee={selected}
+          close={() => setModal(false)}
+          onSaved={() => {
+            setModal(false);
+            setRefreshToken((current) => current + 1);
+          }}
+        />
       )}
       {drawer && selected && (
         <Drawer
@@ -443,34 +451,231 @@ function EmployeeSkeletonRow() {
   );
 }
 
+type EmployeeEditForm = {
+  prefix: string;
+  nickname: string;
+  firstNameThai: string;
+  lastNameThai: string;
+  englishName: string;
+  citizenId: string;
+  businessEmail: string;
+  phone: string;
+  departmentId: string;
+  positionId: string;
+  employmentType: string;
+  startDate: string;
+  supervisorEmployeeId: string;
+};
+
+type EmployeeFormOptions = {
+  departments: { id: string; name: string }[];
+  positions: { id: string; name: string; departmentId: string }[];
+  supervisors: {
+    id: string;
+    employeeCode: string;
+    name: string;
+    departmentId: string;
+  }[];
+};
+
+type FormInputProps = {
+  label: string;
+  value: string;
+  required?: boolean;
+  readOnly?: boolean;
+  type?: "text" | "email" | "date";
+  placeholder?: string;
+  inputMode?: "text" | "numeric" | "email" | "tel";
+  onChange?: (value: string) => void;
+};
+
+function FormInput({
+  label,
+  value,
+  required = false,
+  readOnly = false,
+  type = "text",
+  placeholder,
+  inputMode,
+  onChange,
+}: FormInputProps) {
+  return (
+    <label className="text-sm font-medium text-slate-700">
+      {label}{required && <span className="ml-1 text-red-500">*</span>}
+      <input
+        required={required}
+        readOnly={readOnly}
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        inputMode={inputMode}
+        onChange={(event) => onChange?.(event.target.value)}
+        className="mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 font-normal outline-none focus:border-[#2867b4] read-only:bg-slate-100"
+      />
+    </label>
+  );
+}
+
+type FormSelectProps = {
+  label: string;
+  value: string;
+  options: (string | { value: string; label: string })[];
+  required?: boolean;
+  emptyLabel?: string;
+  className?: string;
+  onChange: (value: string) => void;
+};
+
+function FormSelect({
+  label,
+  value,
+  options,
+  required = false,
+  emptyLabel = "เลือกข้อมูล",
+  className = "",
+  onChange,
+}: FormSelectProps) {
+  return (
+    <label className={`text-sm font-medium text-slate-700 ${className}`}>
+      {label}{required && <span className="ml-1 text-red-500">*</span>}
+      <select
+        required={required}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-1 min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 font-normal outline-none focus:border-[#2867b4]"
+      >
+        <option value="">{emptyLabel}</option>
+        {options.map((option) => {
+          const normalized = typeof option === "string"
+            ? { value: option, label: option }
+            : option;
+          return (
+            <option key={normalized.value} value={normalized.value}>
+              {normalized.label}
+            </option>
+          );
+        })}
+      </select>
+    </label>
+  );
+}
+
+function formatWithGroups(value: string, groups: number[]) {
+  const digits = value.replace(/\D/g, "").slice(0, groups.reduce((total, size) => total + size, 0));
+  let cursor = 0;
+  return groups
+    .map((size) => {
+      const part = digits.slice(cursor, cursor + size);
+      cursor += size;
+      return part;
+    })
+    .filter(Boolean)
+    .join("-");
+}
+
+function formatCitizenId(value: string) {
+  return formatWithGroups(value, [1, 4, 5, 2, 1]);
+}
+
+function formatPhone(value: string) {
+  return formatWithGroups(value, [3, 3, 4]);
+}
+
 function EditModal({
   employee,
   close,
+  onSaved,
 }: {
   employee: Employee;
   close: () => void;
+  onSaved: () => void;
 }) {
-  const fields = [
-    ["รหัสพนักงาน", employee.id], // UNIQUE auto generate id
-    ["คำนำหน้า", employee.prefix], // NOT NULL
-    ["ชื่อเล่น", employee.nickname], // NULLABLE
-    ["ชื่อ (ไทย)", employee.firstNameThai], // NOT NULL
-    ["นามสกุล (ไทย)", employee.lastNameThai], // NOT NULL
-    ["Full Name (EN)", employee.englishName], // NULLABLE
-    ["อีเมลบริษัท", employee.businessEmail], // NOT NULL
-    ["โทรศัพท์", employee.phone], // NULLABLE
-    ["หน่วยงาน", employee.department], // DROPDOWN NOT NULL
-    ["ตำแหน่ง", employee.position], // DROPDOWN NOT NULL
-    ["ประเภทการจ้าง", employee.employmentType],
-    ["วันที่เริ่มงาน", employee.startDate]
-  ];
+  const [form, setForm] = useState<EmployeeEditForm>(() => ({
+    prefix: employee.prefix,
+    nickname: employee.nickname,
+    firstNameThai: employee.firstNameThai,
+    lastNameThai: employee.lastNameThai,
+    englishName: employee.englishName,
+    citizenId: employee.citizenId,
+    businessEmail: employee.businessEmail,
+    phone: employee.phone,
+    departmentId: employee.departmentId,
+    positionId: employee.positionId,
+    employmentType: employee.employmentType,
+    startDate: employee.startDate,
+    supervisorEmployeeId: employee.supervisorEmployeeId,
+  }));
+  const [options, setOptions] = useState<EmployeeFormOptions>({
+    departments: [],
+    positions: [],
+    supervisors: [],
+  });
+  const [optionsError, setOptionsError] = useState("");
+  const [formError, setFormError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    async function loadOptions() {
+      try {
+        const response = await fetch("/api/employees/options");
+        const body = (await response.json()) as EmployeeFormOptions | { error: string };
+        if (!response.ok || !("departments" in body)) {
+          throw new Error("error" in body ? body.error : "Unable to load options");
+        }
+        if (isCurrent) setOptions(body);
+      } catch (error) {
+        console.error("Unable to load employee form options:", error);
+        if (isCurrent) setOptionsError("ไม่สามารถโหลดตัวเลือกข้อมูลได้");
+      }
+    }
+
+    void loadOptions();
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
+
+  const positions = options.positions.filter(
+    (position) => position.departmentId === form.departmentId,
+  );
+  const supervisors = options.supervisors.filter(
+    (supervisor) =>
+      supervisor.departmentId === form.departmentId && supervisor.id !== employee.databaseId,
+  );
+  const setField = <K extends keyof EmployeeEditForm>(
+    field: K,
+    value: EmployeeEditForm[K],
+  ) => setForm((current) => ({ ...current, [field]: value }));
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setFormError("");
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/employees/${employee.databaseId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const body = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(body.error ?? "Unable to save employee");
+      onSaved();
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "ไม่สามารถบันทึกข้อมูลได้");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 z-30 grid place-items-center bg-slate-950/45 p-3 sm:p-6"
       onMouseDown={close}
     >
       <section
-        className="max-h-[94vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-2xl"
+        className="hide-scrollbar max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-xl bg-white shadow-2xl"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <header className="sticky top-0 flex justify-between border-b bg-white p-4 sm:p-5">
@@ -483,34 +688,153 @@ function EditModal({
             </p>
           </div>
           <button
+            type="button"
             onClick={close}
             className="hover:text-red-500"
           >
             <FontAwesomeIcon icon={faXmark} className="h-4 w-4" />
           </button>
         </header>
-        <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
-          {fields.map(([label, value]) => (
-            <label key={label} className="text-sm font-medium">
-              {label}
-              <input
-                defaultValue={value}
-                className="mt-1 min-h-11 w-full rounded-md border px-3 font-normal outline-none focus:border-[#2867b4]"
-              />
-            </label>
-          ))}
-        </div>
-        <footer className="sticky bottom-0 flex justify-end gap-3 border-t bg-white p-4">
-          <button onClick={close} className="min-h-10 rounded-md border px-4 hover:bg-gray-200">
-            ยกเลิก
-          </button>
-          <button
-            onClick={close}
-            className="min-h-10 rounded-md bg-[#102d59] px-4 font-semibold text-white hover:bg-[#244675]"
-          >
-            บันทึก
-          </button>
-        </footer>
+        <form onSubmit={submit}>
+          <div className="space-y-6 p-4 sm:p-5">
+            <fieldset className="space-y-3">
+              <legend className="text-base font-bold text-slate-900">ข้อมูลส่วนบุคคล</legend>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <FormInput label="รหัสพนักงาน" required value={employee.id} readOnly />
+                <FormSelect
+                  label="คำนำหน้า"
+                  required
+                  value={form.prefix}
+                  onChange={(value) => setField("prefix", value)}
+                  options={["นาย", "นางสาว", "นาง"]}
+                />
+                <FormInput
+                  label="ชื่อเล่น"
+                  value={form.nickname}
+                  onChange={(value) => setField("nickname", value)}
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormInput
+                  label="ชื่อ (ไทย)"
+                  required
+                  value={form.firstNameThai}
+                  onChange={(value) => setField("firstNameThai", value)}
+                />
+                <FormInput
+                  label="นามสกุล (ไทย)"
+                  required
+                  value={form.lastNameThai}
+                  onChange={(value) => setField("lastNameThai", value)}
+                />
+                <FormInput
+                  label="Full Name (ENG)"
+                  value={form.englishName}
+                  onChange={(value) => setField("englishName", value)}
+                />
+                <FormInput
+                  label="เลขบัตรประชาชน"
+                  required
+                  value={form.citizenId}
+                  inputMode="numeric"
+                  placeholder="x-xxxx-xxxxx-xx-x"
+                  onChange={(value) => setField("citizenId", formatCitizenId(value))}
+                />
+                <FormInput
+                  label="อีเมลบริษัท"
+                  required
+                  type="email"
+                  value={form.businessEmail}
+                  onChange={(value) => setField("businessEmail", value)}
+                />
+                <FormInput
+                  label="โทรศัพท์"
+                  placeholder="xxx-xxx-xxxx"
+                  inputMode="tel"
+                  value={form.phone}
+                  onChange={(value) => setField("phone", formatPhone(value))}
+                />
+              </div>
+            </fieldset>
+
+            <fieldset className="space-y-3">
+              <legend className="text-base font-bold text-slate-900">ข้อมูลการจ้างงาน</legend>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormSelect
+                  label="หน่วยงาน"
+                  required
+                  value={form.departmentId}
+                  onChange={(value) => {
+                    setForm((current) => ({
+                      ...current,
+                      departmentId: value,
+                      positionId: "",
+                      supervisorEmployeeId: "",
+                    }));
+                  }}
+                  options={options.departments.map((department) => ({
+                    value: department.id,
+                    label: department.name,
+                  }))}
+                />
+                <FormSelect
+                  label="ตำแหน่ง"
+                  required
+                  value={form.positionId}
+                  onChange={(value) => setField("positionId", value)}
+                  options={positions.map((position) => ({
+                    value: position.id,
+                    label: position.name,
+                  }))}
+                />
+                <FormSelect
+                  label="ประเภทการจ้างงาน"
+                  required
+                  value={form.employmentType}
+                  onChange={(value) => setField("employmentType", value)}
+                  options={["ประจำ", "พาร์ทไทม์", "สัญญาจ้างชั่วคราว", "ฟรีแลนซ์"]}
+                />
+                <FormInput
+                  label="วันที่เริ่มงาน"
+                  required
+                  type="date"
+                  value={form.startDate}
+                  onChange={(value) => setField("startDate", value)}
+                />
+                <FormSelect
+                  label="ผู้บังคับบัญชา"
+                  value={form.supervisorEmployeeId}
+                  onChange={(value) => setField("supervisorEmployeeId", value)}
+                  options={supervisors.map((supervisor) => ({
+                    value: supervisor.id,
+                    label: `${supervisor.employeeCode} · ${supervisor.name}`,
+                  }))}
+                  emptyLabel="ไม่ระบุ"
+                  className="sm:col-span-2"
+                />
+              </div>
+            </fieldset>
+
+            {optionsError && <p className="text-sm text-red-600">{optionsError}</p>}
+            {formError && (
+              <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+                {formError}
+              </p>
+            )}
+          </div>
+          <footer className="sticky bottom-0 flex justify-end gap-3 border-t bg-white p-4">
+            <button type="button" onClick={close} className="min-h-10 rounded-md border px-4 hover:bg-gray-200">
+              ยกเลิก
+            </button>
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="min-h-10 rounded-md bg-[#102d59] px-4 font-semibold text-white hover:bg-[#244675] disabled:cursor-wait disabled:opacity-60"
+            >
+              {isSaving ? "กำลังบันทึก..." : "บันทึก"}
+            </button>
+          </footer>
+        </form>
       </section>
     </div>
   );

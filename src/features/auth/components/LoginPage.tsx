@@ -51,7 +51,7 @@ function InvCard() {
   return (
     <div className="w-full max-w-2xl border border-white/60 bg-[linear-gradient(135deg,rgba(255,255,255,0.78),rgba(255,255,255,0.38),transparent)] p-8 text-center shadow-lg backdrop-blur-[2px]">
       <div className="mx-auto flex w-full max-w-[30rem] items-center gap-1 text-left">
-        <p className="logo-mark text-3xl font-black tracking-[-0.14em]"><span className="logo-mark-g">G</span>H</p>
+        <p className="logo-mark text-3xl font-black tracking-[-0.14em] relative"><span className="logo-mark-g absolute right-4">G</span>H</p>
         <div className="flex flex-col items-start leading-tight">
           <p className="text-sm font-bold tracking-wide pl-6">
             GRAMMIC HOUSE CO., LTD.
@@ -76,10 +76,14 @@ function InvCard() {
 }
 function Logo() {
   return (
-    <div className="w">
-      <p className="logo-mark text-3xl font-black tracking-[-0.14em]"><span className="logo-mark-g">G</span>H</p>
-      <p className="text-sm font-bold tracking-wide">GRAMMIC HOUSE CO., LTD.</p>
-      <p className="text-[10px]">Human Resource Management System</p>
+    <div className="mx-auto flex w-full max-w-[30rem] items-center gap-1 text-left">
+      <p className="logo-mark relative text-3xl font-black tracking-[-0.14em]"><span className="logo-mark-g absolute right-4">G</span>H</p>
+      <div className="flex flex-col items-start leading-tight">
+        <p className="pl-6 text-sm font-bold tracking-wide">
+          GRAMMIC HOUSE CO., LTD.
+        </p>
+        <p className="pl-6 text-[10px]">Human Resource Management System</p>
+      </div>
     </div>
   );
 }

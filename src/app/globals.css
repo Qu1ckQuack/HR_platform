@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+@keyframes drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-drawer-in {
+  animation: drawer-in 220ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse {
+    animation: none;
+  }
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-thai-sans);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-thai-sans), sans-serif;
+  font-synthesis: none;
+}
+
+.logo-mark {
+  font-family: var(--font-logo), sans-serif;
+}
+
+.logo-mark-g {
+  -webkit-text-stroke: 1px #ffffff;
+}

@@ -1,8 +1,18 @@
 import {
+  approveProbationRecord,
+  cancelTerminatedContractRecord,
   createEmployeeRecord,
   EmployeeRepositoryError,
+  expireContractsForActor,
+  findEmployeeNotifications,
   findEmployeeFormOptions,
+  findEmployeePositionHistory,
   findEmployeesWithCurrentDetails,
+  pruneDeletedEmployees,
+  renewContractRecord,
+  rejectProbationRecord,
+  restoreEmployeeRecord,
+  softDeleteEmployeeRecord,
   updateEmployeeRecord,
 } from "@/repositories/employee.repository";
 import {
@@ -10,6 +20,7 @@ import {
   getProbationCompletionDate,
 } from "@/lib/employment-dates";
 import type { ContractType, EmployeeUpdate } from "@/types/employee";
+import type { NotificationData } from "@/types/notification-type";
 
 const PAGE_SIZE = 10;
 const prefixes = new Set(["นาย", "นางสาว", "นาง"]);
@@ -24,6 +35,7 @@ const phonePattern = /^\d{3}-\d{3}-\d{4}$/;
 const employeeCodePattern = /^EMP\d{5,}$/;
 const departmentCodePattern = /^DEP_\d{4,}$/;
 const positionCodePattern = /^POS_\d{4,}$/;
+const contractCodePattern = /^CNT_\d{4,}$/;
 
 export async function listEmployees({
   requestedPage,
@@ -34,6 +46,7 @@ export async function listEmployees({
   search: string;
   statusFilter: string;
 }) {
+  await pruneDeletedEmployees();
   const page = Number.isFinite(requestedPage) && requestedPage > 0
     ? requestedPage
     : 1;
@@ -137,6 +150,124 @@ export async function createEmployee(actorId: string, input: unknown) {
   }
 }
 
+export async function getEmployeeNotifications(actorId: string) {
+  await expireDueContracts(actorId);
+  const rows = await findEmployeeNotifications();
+  return rows.map((row): NotificationData => ({
+    ...row,
+    id: `${row.kind}:${row.contractId}`,
+  }));
+}
+
+export async function expireDueContracts(actorId: string) {
+  try {
+    await expireContractsForActor(actorId);
+  } catch (error) {
+    if (error instanceof EmployeeRepositoryError) {
+      throw new EmployeeServiceError(error.message, error.status);
+    }
+    throw error;
+  }
+}
+
+export async function approveProbation(actorId: string, contractId: string) {
+  if (!contractCodePattern.test(contractId)) {
+    throw new EmployeeServiceError("รหัสสัญญาไม่ถูกต้อง", 400);
+  }
+  await runContractAction(() => approveProbationRecord(actorId, contractId));
+}
+
+export async function rejectProbation(actorId: string, contractId: string) {
+  if (!contractCodePattern.test(contractId)) {
+    throw new EmployeeServiceError("รหัสสัญญาไม่ถูกต้อง", 400);
+  }
+  await runContractAction(() => rejectProbationRecord(actorId, contractId));
+}
+
+export async function cancelTerminatedContract(actorId: string, contractId: string) {
+  if (!contractCodePattern.test(contractId)) {
+    throw new EmployeeServiceError("รหัสสัญญาไม่ถูกต้อง", 400);
+  }
+  await runContractAction(() => cancelTerminatedContractRecord(actorId, contractId));
+}
+
+export async function renewContract(
+  actorId: string,
+  contractId: string,
+  input: unknown,
+) {
+  if (!contractCodePattern.test(contractId)) {
+    throw new EmployeeServiceError("รหัสสัญญาไม่ถูกต้อง", 400);
+  }
+  const endDate = getRenewalEndDate(input);
+  if (!isValidDate(endDate)) {
+    throw new EmployeeServiceError("กรุณาระบุวันสิ้นสุดสัญญาใหม่", 400);
+  }
+  if (endDate <= getCurrentBangkokDate()) {
+    throw new EmployeeServiceError("วันสิ้นสุดสัญญาใหม่ต้องเป็นวันในอนาคต", 400);
+  }
+  await runContractAction(() => renewContractRecord(actorId, contractId, endDate));
+}
+
+export async function softDeleteEmployee(actorId: string, employeeId: string) {
+  if (!employeeCodePattern.test(employeeId)) {
+    throw new EmployeeServiceError("รหัสพนักงานไม่ถูกต้อง", 400);
+  }
+  try {
+    await softDeleteEmployeeRecord(actorId, employeeId);
+  } catch (error) {
+    if (error instanceof EmployeeRepositoryError) {
+      throw new EmployeeServiceError(error.message, error.status);
+    }
+    throw error;
+  }
+}
+
+export async function restoreEmployee(actorId: string, employeeId: string) {
+  if (!employeeCodePattern.test(employeeId)) {
+    throw new EmployeeServiceError("รหัสพนักงานไม่ถูกต้อง", 400);
+  }
+  try {
+    await restoreEmployeeRecord(actorId, employeeId);
+  } catch (error) {
+    if (error instanceof EmployeeRepositoryError) {
+      throw new EmployeeServiceError(error.message, error.status);
+    }
+    throw error;
+  }
+}
+
+export async function getEmployeePositionHistory(actorId: string, employeeId: string) {
+  if (!employeeCodePattern.test(employeeId)) {
+    throw new EmployeeServiceError("รหัสพนักงานไม่ถูกต้อง", 400);
+  }
+  try {
+    await expireDueContracts(actorId);
+    return await findEmployeePositionHistory(employeeId);
+  } catch (error) {
+    if (error instanceof EmployeeRepositoryError) {
+      throw new EmployeeServiceError(error.message, error.status);
+    }
+    throw error;
+  }
+}
+
+function getRenewalEndDate(input: unknown) {
+  if (typeof input !== "object" || input === null || !("endDate" in input)) return "";
+  return typeof input.endDate === "string" ? input.endDate.trim() : "";
+}
+
+async function runContractAction(action: () => Promise<void>) {
+  try {
+    await action();
+  } catch (error) {
+    if (error instanceof EmployeeRepositoryError) {
+      throw new EmployeeServiceError(error.message, error.status);
+    }
+    throw error;
+  }
+}
+
 function prepareEmployeeInput(input: unknown): EmployeeUpdate {
   const values = normalizeEmployeeInput(input);
   const validationError = validateEmployeeInput(values);
@@ -144,6 +275,9 @@ function prepareEmployeeInput(input: unknown): EmployeeUpdate {
 
   return {
     ...values,
+    religion: values.religion || "ไม่มีศาสนา",
+    disability: values.disability || "",
+    criminalRecord: values.criminalRecord || "",
     probationCompletionDate:
       values.employmentStatus === "ทดลองงาน"
         ? getProbationCompletionDate(values.startDate)
@@ -168,6 +302,10 @@ function normalizeEmployeeInput(input: unknown): EmployeeUpdate {
     personalEmail: String(body.personalEmail ?? "").trim().toLowerCase(),
     businessEmail: String(body.businessEmail ?? "").trim().toLowerCase(),
     phone: String(body.phone ?? "").trim(),
+    religion: String(body.religion ?? "").trim() || "ไม่มีศาสนา",
+    disability: String(body.disability ?? "").trim(),
+    criminalRecord: String(body.criminalRecord ?? "").trim(),
+    salary: String(body.salary ?? "").trim(),
     departmentId: String(body.departmentId ?? "").trim(),
     positionId: String(body.positionId ?? "").trim(),
     employmentType: parseContractType(body.employmentType),
@@ -212,6 +350,9 @@ function validateEmployeeInput(values: EmployeeUpdate) {
   if (!values.bankAccount) return "กรุณากรอกบัญชีธนาคาร";
   if (!values.location) return "กรุณากรอกที่อยู่";
   if (!isEmail(values.personalEmail)) return "กรุณากรอกอีเมลส่วนตัวให้ถูกต้อง";
+  if (!values.salary) return "กรุณากรอกค่าตอบแทน/เงินเดือน";
+  if (!Number.isFinite(Number(values.salary))) return "ค่าตอบแทน/เงินเดือนต้องเป็นตัวเลข";
+  if (Number(values.salary) < 0) return "ค่าตอบแทน/เงินเดือนต้องไม่ติดลบ";
   return null;
 }
 
@@ -253,7 +394,9 @@ export class EmployeeServiceError extends Error {
 
 function serializeEmployee(row: Awaited<ReturnType<typeof findEmployeesWithCurrentDetails>>[number]) {
   const { employee, personalInfo: personal, contract, positionHistory, position, department } = row;
-  const employmentStatus = toContractStatus(contract?.employmentStatus);
+  const employmentStatus = contract
+    ? toContractStatus(contract.employmentStatus)
+    : "พ้นสภาพ";
   const contractEndDate = contract?.endDate ?? "";
   const probationCompletionDate = contract?.probationEndDate ?? "";
   const deadline = probationCompletionDate || contractEndDate;
@@ -275,6 +418,10 @@ function serializeEmployee(row: Awaited<ReturnType<typeof findEmployeesWithCurre
     bankAccount: personal?.bankAccount ?? "",
     location: personal?.location ?? "",
     personalEmail: personal?.email ?? "",
+    religion: personal?.religion ?? "ไม่มีศาสนา",
+    disability: personal?.disability ?? "",
+    criminalRecord: personal?.criminalRecord ?? "",
+    salary: personal?.salary ?? "",
     taxAllowance: personal?.taxAllowance ?? "",
     businessEmail: employee.companyEmail,
     phone: personal?.phone ?? "",

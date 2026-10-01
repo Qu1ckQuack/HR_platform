@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import type { Employee, EmployeeListResponse } from "@/types/employee";
@@ -15,6 +16,7 @@ export function useEmployees({
   search: string;
   statusFilter: EmployeeStatusFilter;
 }) {
+  const router = useRouter();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selected, setSelected] = useState<Employee | null>(null);
   const [totalEmployees, setTotalEmployees] = useState(0);
@@ -37,8 +39,15 @@ export function useEmployees({
           search,
           status: statusFilter,
         });
-        const response = await fetch(`/api/employees?${params.toString()}`);
+        const response = await fetch(`/api/employees?${params.toString()}`, {
+          credentials: "include",
+        });
         const body = (await response.json()) as EmployeeListResponse | { error: string };
+
+        if (response.status === 401 || response.status === 403) {
+          router.push("/login");
+          return;
+        }
 
         if (!response.ok || !("employees" in body)) {
           throw new Error("error" in body ? body.error : "Unable to load employees");
@@ -66,7 +75,7 @@ export function useEmployees({
     return () => {
       isCurrent = false;
     };
-  }, [page, search, statusFilter, refreshToken]);
+  }, [page, search, statusFilter, refreshToken, router]);
 
   return {
     employees,

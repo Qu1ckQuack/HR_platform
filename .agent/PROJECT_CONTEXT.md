@@ -14,6 +14,12 @@ This is employee manager web app for HR
 ```text
 my-app/
 │
+│
+├── scripts/                         
+│    │── ensure-database         # make sure database exists if not creat new one
+│    │── seed-auth               # generate seed super-user account
+│    │__ seed-employees          # generate employee seeds
+│
 ├── app/                         # Next.js routing + pages + HTTP endpoints
 │
 │   ├── (auth)/                  # Route group; doesn't appear in the URL
@@ -49,6 +55,8 @@ my-app/
 ├── lib/                         # Infrastructure/shared utilities
 │   ├── db.ts                    # Database connection
 │   ├── auth.ts                  # Authentication configuration/helpers
+│   ├── notification-tone.ts     # Notification sound configuration
+│   ├── require-hr-session.ts     # require-hr sessiond configuration
 │   └── utils.ts                 # Generic utilities
 │
 ├── services/                    # Business/application logic
@@ -65,8 +73,8 @@ my-app/
 │   └── product.ts
 │
 ├── hooks/                       # React custom hooks
-│   ├── useUser.ts
-│   └── useProducts.ts
+│   ├── .ts
+│   └── loadEmployee.ts
 │
 ├── drizzle/                     # Database schema/migrations
 │   └── schema.drizzle
@@ -94,3 +102,24 @@ my-app/
 - Read the relevant local Next.js 16 documentation in
   `node_modules/next/dist/docs/` before changing Next.js code.
 - Write WORK_LOG everytime your task is complete `.agent/WORK_LOG.md`
+- Entity name was stored like this "Entity"
+
+## Current HR implementation map
+
+- Employee routes are under `src/app/employees/` and employee APIs are under
+  `src/app/api/employees/`.
+- The mounted `/employees` route imports
+  `src/components/employees/EmployeePage.tsx`.
+- No separate `src/features/employees/EmployeePage.tsx` is retained; the
+  employee page is owned by `src/components/employees/` and mounted by the
+  employee route. Stale `.next` build output can still mention the removed copy.
+- Shared employee behavior is divided among `src/hooks/`,
+  `src/services/employee.service.ts`, `src/repositories/employee.repository.ts`,
+  `src/types/`, and `src/lib/`.
+- HR contract notifications and actions use
+  `src/components/employees/EmployeeNotifications.tsx`,
+  `src/app/api/employees/notifications/`, and the contract API routes under
+  `src/app/api/employees/contracts/[contractId]/`.
+- Contract and personal dates are PostgreSQL `DATE` values. Convert them to
+  Buddhist Era only for display; keep native date input values in Gregorian
+  `YYYY-MM-DD` form.

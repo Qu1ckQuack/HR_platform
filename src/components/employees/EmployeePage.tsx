@@ -1,6 +1,6 @@
 "use client";
 
-import { type SubmitEvent, useEffect, useState } from "react";
+import { type SubmitEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -14,7 +14,6 @@ import {
   faUserPlus,
   faMagnifyingGlass,
   faGear,
-  faBell,
   faExpand,
   faPen,
   faXmark,
@@ -24,17 +23,66 @@ import {
   faFloppyDisk
 } from "@fortawesome/free-solid-svg-icons";
 import type { Employee } from "@/types/employee";
-import { useEmployees } from "@/hooks/useEmployees";
+import { useEmployees } from "@/hooks/loadEmployee";
 import { InfoSection } from "@/components/ui/InfoSection";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { EmployeeNotifications } from "@/components/employees/EmployeeNotifications";
 import {
+  formatBuddhistDate,
   getCurrentBangkokDate,
   getProbationCompletionDate,
 } from "@/lib/employment-dates";
 
+type PositionHistoryEntry = {
+  id: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  departmentName: string | null;
+  positionName: string | null;
+};
+
+type ExportPdfButtonProps = {
+  targetRef: React.RefObject<HTMLTableElement | null>;
+  filename?: string;
+};
+
+function ExportPdfButton({
+  targetRef,
+  filename = "employee-report.pdf",
+}: ExportPdfButtonProps) {
+  const handleExport = async () => {
+    const element = targetRef.current;
+    console.log(element)
+
+    if (!element) {
+      window.alert("ไม่พบตารางพนักงานสำหรับส่งออก");
+      return;
+    }
+
+    try {
+      await exportToPDF(element, filename);
+    } catch (error) {
+      console.error(error);
+      window.alert("ไม่สามารถส่งออกไฟล์ PDF ได้");
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleExport}
+      className="min-h-11 rounded-md border border-gray-400 px-3 text-sm cursor-pointer"
+    >
+      <FontAwesomeIcon icon={faDownload} className="mr-1 h-4 w-4" />
+      ส่งออก
+    </button>
+  );
+}
+
 export default function EmployeePage() {
   const router = useRouter();
+  const reportRef = useRef<HTMLTableElement>(null);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | Employee["status"]>(
@@ -55,6 +103,10 @@ export default function EmployeePage() {
   const [modal, setModal] = useState(false);
   const [drawer, setDrawer] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [tableMode, setTableMode] = useState<"column" | "row">("column");
+  const [historyEmployeeId, setHistoryEmployeeId] = useState<string | null>(null);
+  const [historyEntries, setHistoryEntries] = useState<PositionHistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const open = (employee: Employee, mode: "edit" | "view") => {
     setSelected(employee);
@@ -65,6 +117,48 @@ export default function EmployeePage() {
     setSelected(null);
     setModal(true);
   };
+
+  const loadHistory = async (employeeId: string) => {
+    setHistoryEmployeeId(employeeId);
+    setHistoryLoading(true);
+
+    try {
+      const response = await fetch(`/api/employees/${employeeId}/history`, {
+        headers: { Accept: "application/json" },
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error ?? "ไม่สามารถโหลดประวัติการดำรงตำแหน่งได้");
+      }
+      setHistoryEntries(payload.history ?? []);
+    } catch (error) {
+      console.error(error);
+      setHistoryEntries([]);
+      window.alert(error instanceof Error ? error.message : "ไม่สามารถโหลดประวัติการดำรงตำแหน่งได้");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const softDeleteEmployee = async (employee: Employee) => {
+    const confirmed = window.confirm(`ลบพนักงาน ${employee.name} ชั่วคราว 7 วันเพื่อรอการลบถาวร ?`);
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(`/api/employees/${employee.id}`, {
+        method: "DELETE",
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error ?? "ไม่สามารถลบพนักงานชั่วคราวได้");
+      }
+      refreshEmployees();
+    } catch (error) {
+      console.error(error);
+      window.alert(error instanceof Error ? error.message : "ไม่สามารถลบพนักงานชั่วคราวได้");
+    }
+  };
+
   return (
     <main className="min-h-screen bg-[#f4f7fa] text-slate-700">
       <header className="flex min-h-14 items-center justify-between gap-3 border-b border-gray-400 bg-white px-3 py-2 shadow-sm sm:px-5">
@@ -82,37 +176,30 @@ export default function EmployeePage() {
         </div>
         <div className="flex items-center gap-2 *:cursor-pointer">
           <button
-            onClick={startCreate}
             className="hidden rounded-md bg-[#102d59] px-4 py-2 text-sm font-semibold text-white sm:block"
           >
             ＋ สร้างรายการ
           </button>
           <button
-            title="Not implemented yet"
+            title="การตั้งค่า(ยังไม่เสร็จ)"
             className="min-h-10 min-w-10 rounded hover:bg-slate-100"
             aria-label="Show employee"
           >
             <FontAwesomeIcon icon={faGear} className="h-4 w-4" />
           </button>
           <button
-            title="Not implemented yet"
+            title="(ยังไม่เสร็จ)"
             className="min-h-10 min-w-10 rounded hover:bg-slate-100"
             aria-label="Show employee"
           >
             <FontAwesomeIcon icon={faExpand} className="h-4 w-4" />
           </button>
-          <button
-            title="Not implemented yet"
-            className="min-h-10 min-w-10 rounded hover:bg-slate-100"
-            aria-label="Show employee"
-          >
-            <FontAwesomeIcon icon={faBell} className="h-4 w-4" />
-          </button>
+          <EmployeeNotifications onEmployeesChanged={refreshEmployees} />
           <button
             onClick={() => router.push("/login")}
             className="min-h-10 min-w-10 rounded-full bg-slate-200 text-xs font-bold"
           >
-            AW
+            HR
           </button>
         </div>
       </header>
@@ -174,7 +261,7 @@ export default function EmployeePage() {
             {!isFocused && (
               <FontAwesomeIcon
                 icon={faMagnifyingGlass}
-                className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 pl-1 pr-1"
               />
             )}
 
@@ -196,17 +283,24 @@ export default function EmployeePage() {
             <select className="min-h-11 rounded-md border-gray-400 border px-3 text-sm cursor-pointer">
               <option>ทุกประเภทการจ้าง</option>
             </select>
-            <button className="min-h-11 rounded-md border border-gray-400 px-3 text-sm *:cursor-pointer">
+            <button
+              type="button"
+              onClick={() => setTableMode((current) => current === "column" ? "row" : "column")}
+              className="min-h-11 rounded-md border border-gray-400 px-3 text-sm *:cursor-pointer"
+            >
               <FontAwesomeIcon icon={faTableColumns} className="mr-1 h-4 w-4" />
-              คอลัมน์
+              {tableMode === "column" ? "คอลัมน์" : "แถว"}
             </button>
-            <button className="min-h-11 rounded-md border border-gray-400 px-3 text-sm">
-              <FontAwesomeIcon icon={faDownload} className="mr-1 h-4 w-4" />
-              ส่งออก
-            </button>
+            <ExportPdfButton
+              targetRef={reportRef}
+              filename="employees.pdf"
+            />
           </div>
           <div className="min-h-[40rem] overflow-x-auto">
-            <table className="w-full min-w-[42rem] text-left text-sm sm:min-w-[62rem] border-b border-gray-300">
+            <table
+              ref={reportRef}
+              className="w-full min-w-[42rem] text-left text-sm sm:min-w-[62rem] border-b border-gray-300"
+            >
               <thead className="border-b border-gray-300 bg-slate-50 text-xs text-slate-500">
                 <tr>
                   <th className="p-3 sm:p-4">รหัส</th>
@@ -285,7 +379,7 @@ export default function EmployeePage() {
                         <StatusBadge status={employee.status} />
                       </td>
                       <td className="hidden p-4 md:table-cell">
-                        {employee.startDate}
+                        {formatBuddhistDate(employee.startDate)}
                       </td>
                       <td className="hidden max-w-56 p-4 text-center md:table-cell">
                         <p className="whitespace-nowrap text-xs">
@@ -295,6 +389,7 @@ export default function EmployeePage() {
                       <td className="p-3 text-right sm:p-4">
                         <div className="flex justify-end gap-2 whitespace-nowrap text-[#102d59]">
                           <button
+                            title="ดูข้อมูล"
                             onClick={() => open(employee, "view")}
                             className="min-h-10 min-w-10 rounded hover:bg-slate-100"
                             aria-label="Show employee"
@@ -302,6 +397,7 @@ export default function EmployeePage() {
                             <FontAwesomeIcon icon={faEye} className="h-4 w-4" />
                           </button>
                           <button
+                            title="แก้ไขข้อมูลพนักงาน"
                             onClick={() => open(employee, "edit")}
                             className="min-h-10 min-w-10 rounded hover:bg-slate-100"
                             aria-label="Edit employee"
@@ -312,8 +408,9 @@ export default function EmployeePage() {
                             />
                           </button>
                           <button
-                            title="Not implemented yet"
-                            className="min-h-10 min-w-10 rounded"
+                            title="ดูประวัติการดำรงตำแหน่ง"
+                            onClick={() => loadHistory(employee.id)}
+                            className="min-h-10 min-w-10 rounded hover:bg-slate-100"
                             aria-label="History"
                           >
                             <FontAwesomeIcon
@@ -322,6 +419,8 @@ export default function EmployeePage() {
                             />
                           </button>
                           <button
+                            title="ลบข้อมูลผู้ใช้ (soft delete 7 วัน)"
+                            onClick={() => softDeleteEmployee(employee)}
                             className="min-h-10 min-w-10 text-red-500 rounded hover:bg-slate-100"
                             aria-label="Delete employee"
                           >
@@ -387,6 +486,45 @@ export default function EmployeePage() {
             setModal(true);
           }}
         />
+      )}
+      {historyEmployeeId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/25 p-4">
+          <div className="w-full max-w-xl rounded-md border border-slate-200 bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+              <h3 className="text-sm font-semibold text-slate-900">ประวัติการดำรงตำแหน่ง</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setHistoryEmployeeId(null);
+                  setHistoryEntries([]);
+                }}
+                className="rounded px-2 py-1 text-sm text-slate-500 hover:bg-slate-100"
+              >
+                ปิด
+              </button>
+            </div>
+            <div className="max-h-[70vh] overflow-y-auto p-4">
+              {historyLoading ? (
+                <p className="text-sm text-slate-500">กำลังโหลดประวัติ...</p>
+              ) : historyEntries.length === 0 ? (
+                <p className="text-sm text-slate-500">ยังไม่มีประวัติการดำรงตำแหน่ง</p>
+              ) : (
+                <ul className="space-y-3">
+                  {historyEntries.map((entry) => (
+                    <li key={entry.id} className="rounded-md border border-slate-200 p-3">
+                      <p className="font-semibold text-slate-800">{entry.positionName ?? "ยังไม่ระบุตำแหน่ง"}</p>
+                      <p className="text-xs text-slate-500">{entry.departmentName ?? "ยังไม่ระบุหน่วยงาน"}</p>
+                      <p className="mt-2 text-xs text-slate-600">
+                        {formatBuddhistDate(entry.effectiveFrom)}
+                        {entry.effectiveTo ? ` - ${formatBuddhistDate(entry.effectiveTo)}` : " - ปัจจุบัน"}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );
@@ -454,8 +592,13 @@ function EmployeeSkeletonRow() {
 }
 
 function formatContractDeadline(employee: Employee) {
-  const date = employee.probationCompletionDate || employee.contractEndDate;
-  if (!date) return "-";
+  const rawDate = employee.probationCompletionDate || employee.contractEndDate;
+  if (!rawDate) return "-";
+  if (
+    employee.employmentType === "พนักงานสัญญาจ้าง" &&
+    employee.daysUntilEnd === 0
+  ) return "หมดสัญญา";
+  const date = formatBuddhistDate(rawDate);
   if (employee.probationCompletionDate) {
     if (employee.daysUntilEnd === 0) return `${date} (จบการทดลองงาน)`;
     return `${date} (ทดลองงาน เหลือ ${employee.daysUntilEnd ?? 0} วัน)`;
@@ -474,6 +617,10 @@ type EmployeeEditForm = {
   bankAccount: string;
   location: string;
   personalEmail: string;
+  religion: string;
+  disability: string;
+  criminalRecord: string;
+  salary: string;
   businessEmail: string;
   phone: string;
   departmentId: string;
@@ -503,9 +650,11 @@ type FormInputProps = {
   required?: boolean;
   readOnly?: boolean;
   readOnlyBackground?: boolean;
-  type?: "text" | "email" | "date";
+  type?: "text" | "email" | "date" | "number";
   placeholder?: string;
-  inputMode?: "text" | "numeric" | "email" | "tel";
+  inputMode?: "text" | "numeric" | "email" | "tel" | "decimal";
+  min?: string;
+  step?: string;
   onChange?: (value: string) => void;
 };
 
@@ -518,6 +667,8 @@ function FormInput({
   type = "text",
   placeholder,
   inputMode,
+  min,
+  step,
   onChange,
 }: FormInputProps) {
   return (
@@ -531,6 +682,8 @@ function FormInput({
         value={value}
         placeholder={placeholder}
         inputMode={inputMode}
+        min={min}
+        step={step}
         onChange={(event) => onChange?.(event.target.value)}
         className={`mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 font-normal outline-none focus:border-[#2867b4] ${readOnly && readOnlyBackground ? "read-only:bg-slate-100" : ""}`}
       />
@@ -628,6 +781,10 @@ function EditModal({
     bankAccount: employee?.bankAccount ?? "",
     location: employee?.location ?? "",
     personalEmail: employee?.personalEmail ?? "",
+    religion: employee?.religion ?? "ไม่มีศาสนา",
+    disability: employee?.disability ?? "",
+    criminalRecord: employee?.criminalRecord ?? "",
+    salary: employee?.salary ?? "",
     businessEmail: employee?.businessEmail ?? "",
     phone: employee?.phone ?? "",
     departmentId: employee?.departmentId ?? "",
@@ -840,6 +997,31 @@ function EditModal({
                     setField("sex", value as EmployeeEditForm["sex"])
                   }
                   options={["ชาย", "หญิง", "อื่นๆ"]}
+                />
+                <FormInput
+                  label="ศาสนา"
+                  value={form.religion}
+                  onChange={(value) => setField("religion", value)}
+                />
+                <FormInput
+                  label="ความพิการ"
+                  value={form.disability}
+                  onChange={(value) => setField("disability", value)}
+                />
+                <FormInput
+                  label="ประวัติอาชญากรรม"
+                  value={form.criminalRecord}
+                  onChange={(value) => setField("criminalRecord", value)}
+                />
+                <FormInput
+                  label="ค่าตอบแทน/เงินเดือน"
+                  required
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="100"
+                  value={form.salary}
+                  onChange={(value) => setField("salary", value)}
                 />
               </div>
             </fieldset>

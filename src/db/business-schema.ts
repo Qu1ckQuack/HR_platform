@@ -132,6 +132,10 @@ export const personalInfo = pgTable(
     socialSecurity: text("socialSecurity"),
     providentFund: text("providentFund"),
     taxAllowance: numeric("taxDeductions", { precision: 12, scale: 2 }),
+    religion: text("religion").notNull().default("ไม่มีศาสนา"),
+    disability: text("disability"),
+    criminalRecord: text("criminalRecord"),
+    salary: numeric("salary", { precision: 12, scale: 2 }),
     location: text("location").notNull(),
     email: text("email").notNull(),
     phone: text("phone"),
@@ -143,6 +147,7 @@ export const personalInfo = pgTable(
     unique("PersonalData_citizenId_key").on(table.nationalId),
     check("PersonalData_citizenId_check", sql`${table.nationalId} ~ '^[0-9]{13}$'`),
     check("PersonalData_taxDeductions_check", sql`${table.taxAllowance} >= 0`),
+    check("PersonalData_salary_check", sql`${table.salary} IS NULL OR ${table.salary} >= 0`),
   ],
 );
 

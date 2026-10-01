@@ -19,6 +19,10 @@ export type Employee = {
   bankAccount: string;
   location: string;
   personalEmail: string;
+  religion: string;
+  disability: string;
+  criminalRecord: string;
+  salary: string;
   taxAllowance: string;
   businessEmail: string;
   phone: string;
@@ -50,6 +54,10 @@ export type EmployeeUpdate = {
   personalEmail: string;
   businessEmail: string;
   phone: string;
+  religion: string;
+  disability: string;
+  criminalRecord: string;
+  salary: string;
   departmentId: string;
   positionId: string;
   employmentType: ContractType;

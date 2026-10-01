@@ -1,7 +1,18 @@
-import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  isNotNull,
+  isNull,
+  lte,
+  or,
+  sql,
+} from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import type { EmployeeUpdate } from "@/types/employee";
+import type { NotificationType } from "@/types/notification-type";
 import {
   departments,
   employees,
@@ -122,6 +133,10 @@ export async function updateEmployeeRecord(actorId: string, id: string, values: 
         employeeId: id,
         nationalId: values.citizenId,
         bankAccount: values.bankAccount,
+        religion: values.religion || "ไม่มีศาสนา",
+        disability: values.disability || null,
+        criminalRecord: values.criminalRecord || null,
+        salary: values.salary || null,
         location: values.location,
         email: values.personalEmail,
         phone: values.phone || null,
@@ -131,6 +146,10 @@ export async function updateEmployeeRecord(actorId: string, id: string, values: 
         set: {
           nationalId: values.citizenId,
           bankAccount: values.bankAccount,
+          religion: values.religion || "ไม่มีศาสนา",
+          disability: values.disability || null,
+          criminalRecord: values.criminalRecord || null,
+          salary: values.salary || null,
           location: values.location,
           email: values.personalEmail,
           phone: values.phone || null,
@@ -253,6 +272,10 @@ export async function createEmployeeRecord(
         employeeId: employee.id,
         nationalId: values.citizenId.replaceAll("-", ""),
         bankAccount: values.bankAccount,
+        religion: values.religion || "ไม่มีศาสนา",
+        disability: values.disability || null,
+        criminalRecord: values.criminalRecord || null,
+        salary: values.salary || null,
         location: values.location,
         email: values.personalEmail,
         phone: values.phone || null,
@@ -301,4 +324,149 @@ export class EmployeeRepositoryError extends Error {
   ) {
     super(message);
   }
+}
+
+export async function expireContractsForActor(actorId: string) {
+  await db.execute(sql`SELECT expire_contracts(${actorId})`);
+}
+
+export async function findEmployeeNotifications() {
+  const today = sql`th_today()`;
+  const kind = sql<NotificationType>`CASE
+    WHEN ${employmentContracts.employmentStatus} = 'ทดลองงาน' THEN 'probation-due'
+    ELSE 'contract-expired'
+  END`;
+  const eventDate = sql<string>`CASE
+    WHEN ${employmentContracts.employmentStatus} = 'ทดลองงาน' THEN ${employmentContracts.probationEndDate}
+    ELSE ${employmentContracts.endDate}
+  END`;
+
+  return db
+    .select({
+      contractId: employmentContracts.id,
+      employeeId: employees.id,
+      employeeCode: employees.id,
+      employeeName: sql<string>`concat_ws(' ', nullif(${employees.prefix}, ''), ${employees.firstName}, ${employees.lastName})`,
+      employmentType: employmentContracts.employmentType,
+      kind,
+      eventDate,
+    })
+    .from(employmentContracts)
+    .innerJoin(employees, eq(employees.id, employmentContracts.employeeId))
+    .where(and(
+      isNull(employees.deletedAt),
+      or(
+        and(
+          eq(employmentContracts.employmentStatus, "ทดลองงาน"),
+          lte(employmentContracts.probationEndDate, today),
+        ),
+        and(
+          eq(employmentContracts.employmentType, "พนักงานสัญญาจ้าง"),
+          eq(employmentContracts.employmentStatus, "พ้นสภาพ"),
+          isNotNull(employmentContracts.endDate),
+          lte(employmentContracts.endDate, today),
+        ),
+      ),
+    ))
+    .orderBy(asc(eventDate), asc(employees.id));
+}
+
+export async function approveProbationRecord(actorId: string, contractId: string) {
+  try {
+    await db.execute(sql`SELECT approve_probation(${actorId}, ${contractId})`);
+  } catch (error) {
+    throw mapContractActionError(error);
+  }
+}
+
+export async function renewContractRecord(
+  actorId: string,
+  contractId: string,
+  endDate: string | null,
+) {
+  try {
+    await db.execute(sql`SELECT renew_contract(${actorId}, ${contractId}, ${endDate})`);
+  } catch (error) {
+    throw mapContractActionError(error);
+  }
+}
+
+function mapContractActionError(error: unknown) {
+  const code = getPostgresErrorCode(error);
+  if (code === "42501") return new EmployeeRepositoryError("คุณไม่มีสิทธิ์ดำเนินการ", 403);
+  if (code === "P0001") return new EmployeeRepositoryError("สถานะสัญญาไม่รองรับการดำเนินการนี้", 409);
+  return error instanceof Error ? error : new Error("Contract action failed");
+}
+
+export async function rejectProbationRecord(actorId: string, contractId: string) {
+  try {
+    await db.execute(sql`SELECT reject_probation(${actorId}, ${contractId})`);
+  } catch (error) {
+    throw mapContractActionError(error);
+  }
+}
+
+export async function cancelTerminatedContractRecord(actorId: string, contractId: string) {
+  try {
+    await db.execute(sql`SELECT cancel_terminated_contract(${actorId}, ${contractId})`);
+  } catch (error) {
+    throw mapContractActionError(error);
+  }
+}
+
+export async function softDeleteEmployeeRecord(actorId: string, employeeId: string) {
+  try {
+    await db.execute(sql`SELECT soft_delete_employee(${actorId}, ${employeeId})`);
+  } catch (error) {
+    const code = getPostgresErrorCode(error);
+    if (code === "42501") throw new EmployeeRepositoryError("คุณไม่มีสิทธิ์ดำเนินการ", 403);
+    throw error instanceof Error ? error : new Error("soft delete failed");
+  }
+}
+
+export async function restoreEmployeeRecord(actorId: string, employeeId: string) {
+  try {
+    await db.execute(sql`SELECT restore_employee(${actorId}, ${employeeId})`);
+  } catch (error) {
+    const code = getPostgresErrorCode(error);
+    if (code === "42501") throw new EmployeeRepositoryError("คุณไม่มีสิทธิ์ดำเนินการ", 403);
+    throw error instanceof Error ? error : new Error("restore employee failed");
+  }
+}
+
+export async function pruneDeletedEmployees() {
+  await db.execute(sql`SELECT purge_deleted_employees()`);
+}
+
+export async function findEmployeePositionHistory(employeeId: string) {
+  const [activeContract] = await db
+    .select({ id: employmentContracts.id })
+    .from(employmentContracts)
+    .where(eq(employmentContracts.employeeId, employeeId))
+    .orderBy(desc(employmentContracts.startDate), desc(employmentContracts.id))
+    .limit(1);
+
+  if (!activeContract) {
+    return [] as Array<{
+      id: string;
+      effectiveFrom: string;
+      effectiveTo: string | null;
+      departmentName: string | null;
+      positionName: string | null;
+    }>;
+  }
+
+  return db
+    .select({
+      id: positionHistories.id,
+      effectiveFrom: positionHistories.effectiveFrom,
+      effectiveTo: positionHistories.effectiveTo,
+      departmentName: departments.departmentName,
+      positionName: positions.positionName,
+    })
+    .from(positionHistories)
+    .leftJoin(positions, eq(positions.id, positionHistories.positionId))
+    .leftJoin(departments, eq(departments.id, positionHistories.departmentId))
+    .where(eq(positionHistories.contractId, activeContract.id))
+    .orderBy(desc(positionHistories.effectiveFrom), desc(positionHistories.id));
 }

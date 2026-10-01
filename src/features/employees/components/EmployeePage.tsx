@@ -21,7 +21,6 @@ import {
   faHome,
   faBars,
   faUser,
-  faFloppyDisk
 } from "@fortawesome/free-solid-svg-icons";
 import type { Employee } from "@/types/employee";
 import { useEmployees } from "@/hooks/useEmployees";
@@ -301,7 +300,7 @@ export default function EmployeePage() {
           </div>
           <footer className="flex justify-between p-3 text-xs text-slate-500">
             <span>
-              แสดง {totalEmployees === 0 ? 0 : (page - 1) * 10 + 1}–
+              แสดง {totalEmployees === 0 ? 0 : (page - 1) * 10 + 1}-
               {Math.min(page * 10, totalEmployees)} จาก {totalEmployees}
             </span>
             <div className="flex items-center gap-2">

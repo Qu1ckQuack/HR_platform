@@ -59,3 +59,15 @@ export type EmployeeUpdate = {
   probationCompletionDate: string;
   supervisorEmployeeId: string;
 };
+
+export type EmployeeListResponse = {
+  employees: Employee[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalRecords: number;
+    totalPages: number;
+    active: number;
+    probation: number;
+  };
+};

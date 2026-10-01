@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useEffect, useState } from "react";
+import { type SubmitEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -28,6 +28,10 @@ import { useEmployees } from "@/hooks/useEmployees";
 import { InfoSection } from "@/components/ui/InfoSection";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import {
+  getCurrentBangkokDate,
+  getProbationCompletionDate,
+} from "@/lib/employment-dates";
 
 export default function EmployeePage() {
   const router = useRouter();
@@ -498,6 +502,7 @@ type FormInputProps = {
   value: string;
   required?: boolean;
   readOnly?: boolean;
+  readOnlyBackground?: boolean;
   type?: "text" | "email" | "date";
   placeholder?: string;
   inputMode?: "text" | "numeric" | "email" | "tel";
@@ -509,6 +514,7 @@ function FormInput({
   value,
   required = false,
   readOnly = false,
+  readOnlyBackground = true,
   type = "text",
   placeholder,
   inputMode,
@@ -526,7 +532,7 @@ function FormInput({
         placeholder={placeholder}
         inputMode={inputMode}
         onChange={(event) => onChange?.(event.target.value)}
-        className="mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 font-normal outline-none focus:border-[#2867b4] read-only:bg-slate-100"
+        className={`mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 font-normal outline-none focus:border-[#2867b4] ${readOnly && readOnlyBackground ? "read-only:bg-slate-100" : ""}`}
       />
     </label>
   );
@@ -631,7 +637,7 @@ function EditModal({
         ? "พนักงานประจำ"
         : (employee?.employmentType ?? "พนักงานประจำ"),
     employmentStatus: employee?.employmentStatus || "ปฏิบัติงาน",
-    startDate: employee?.startDate ?? "",
+    startDate: employee?.startDate || getCurrentBangkokDate(),
     contractEndDate: employee?.contractEndDate ?? "",
     probationCompletionDate: employee?.probationCompletionDate ?? "",
     supervisorEmployeeId: employee?.supervisorEmployeeId ?? "",
@@ -685,7 +691,7 @@ function EditModal({
     value: EmployeeEditForm[K],
   ) => setForm((current) => ({ ...current, [field]: value }));
 
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
+  const submit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormError("");
     setIsSaving(true);
@@ -887,18 +893,33 @@ function EditModal({
                   required
                   type="date"
                   value={form.startDate}
-                  onChange={(value) => setField("startDate", value)}
+                  onChange={(value) =>
+                    setForm((current) => ({
+                      ...current,
+                      startDate: value,
+                      probationCompletionDate:
+                        current.employmentStatus === "ทดลองงาน" && value
+                          ? getProbationCompletionDate(value)
+                          : current.probationCompletionDate,
+                    }))
+                  }
                 />
                 <FormSelect
                   label="สถานะการจ้างงาน"
                   required
                   value={form.employmentStatus}
-                  onChange={(value) =>
-                    setField(
-                      "employmentStatus",
-                      value as EmployeeEditForm["employmentStatus"],
-                    )
-                  }
+                  onChange={(value) => {
+                    const employmentStatus =
+                      value as EmployeeEditForm["employmentStatus"];
+                    setForm((current) => ({
+                      ...current,
+                      employmentStatus,
+                      probationCompletionDate:
+                        employmentStatus === "ทดลองงาน" && current.startDate
+                          ? getProbationCompletionDate(current.startDate)
+                          : "",
+                    }));
+                  }}
                   options={["ทดลองงาน", "ปฏิบัติงาน", "พ้นสภาพ"]}
                 />
                 <FormInput
@@ -913,10 +934,9 @@ function EditModal({
                     label="วันครบทดลองงาน"
                     type="date"
                     required
+                    readOnly
+                    readOnlyBackground={false}
                     value={form.probationCompletionDate}
-                    onChange={(value) =>
-                      setField("probationCompletionDate", value)
-                    }
                   />
                 )}
                 <FormSelect

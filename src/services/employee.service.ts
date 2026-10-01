@@ -5,12 +5,21 @@ import {
   findEmployeesWithCurrentDetails,
   updateEmployeeRecord,
 } from "@/repositories/employee.repository";
+import {
+  getCurrentBangkokDate,
+  getProbationCompletionDate,
+} from "@/lib/employment-dates";
 import type { ContractType, EmployeeUpdate } from "@/types/employee";
 
 const PAGE_SIZE = 10;
 const prefixes = new Set(["นาย", "นางสาว", "นาง"]);
 const contractStatuses = new Set(["ทดลองงาน", "ปฏิบัติงาน", "พ้นสภาพ"]);
-const employmentTypes = new Set<ContractType>(["พนักงานประจำ", "พนักงานพาร์ทไทม์", "พนักงานสัญญาจ้าง", "ฟรีแลนซ์"]);
+const employmentTypes = new Set<ContractType>([
+  "พนักงานประจำ",
+  "พนักงานพาร์ทไทม์",
+  "พนักงานสัญญาจ้าง",
+  "ฟรีแลนซ์",
+]);
 const phonePattern = /^\d{3}-\d{3}-\d{4}$/;
 const employeeCodePattern = /^EMP\d{5,}$/;
 const departmentCodePattern = /^DEP_\d{4,}$/;
@@ -67,11 +76,8 @@ export async function listEmployees({
       pageSize: PAGE_SIZE,
       totalRecords,
       totalPages,
-      active: searchResults.filter((employee) => employee.status === "Active")
-        .length,
-      probation: searchResults.filter(
-        (employee) => employee.status === "Probation",
-      ).length,
+      active: searchResults.filter((employee) => employee.status === "Active").length,
+      probation: searchResults.filter((employee) => employee.status === "Probation").length,
     },
   };
 }
@@ -102,9 +108,7 @@ export async function updateEmployee(actorId: string, id: string, input: unknown
     throw new EmployeeServiceError("รหัสพนักงานไม่ถูกต้อง", 400);
   }
 
-  const values = normalizeEmployeeInput(input);
-  const validationError = validateEmployeeInput(values);
-  if (validationError) throw new EmployeeServiceError(validationError, 400);
+  const values = prepareEmployeeInput(input);
   if (values.supervisorEmployeeId === id) {
     throw new EmployeeServiceError("ไม่สามารถตั้งพนักงานเป็นผู้บังคับบัญชาของตนเองได้", 400);
   }
@@ -120,9 +124,7 @@ export async function updateEmployee(actorId: string, id: string, input: unknown
 }
 
 export async function createEmployee(actorId: string, input: unknown) {
-  const values = normalizeEmployeeInput(input);
-  const validationError = validateEmployeeInput(values);
-  if (validationError) throw new EmployeeServiceError(validationError, 400);
+  const values = prepareEmployeeInput(input);
 
   try {
     const id = await createEmployeeRecord(actorId, values);
@@ -135,8 +137,24 @@ export async function createEmployee(actorId: string, input: unknown) {
   }
 }
 
+function prepareEmployeeInput(input: unknown): EmployeeUpdate {
+  const values = normalizeEmployeeInput(input);
+  const validationError = validateEmployeeInput(values);
+  if (validationError) throw new EmployeeServiceError(validationError, 400);
+
+  return {
+    ...values,
+    probationCompletionDate:
+      values.employmentStatus === "ทดลองงาน"
+        ? getProbationCompletionDate(values.startDate)
+        : "",
+  };
+}
+
 function normalizeEmployeeInput(input: unknown): EmployeeUpdate {
-  const body = input && typeof input === "object" ? input as Partial<EmployeeUpdate> : {};
+  const body = input && typeof input === "object"
+    ? input as Partial<EmployeeUpdate>
+    : {};
   return {
     prefix: String(body.prefix ?? "").trim(),
     nickname: String(body.nickname ?? "").trim(),
@@ -154,9 +172,9 @@ function normalizeEmployeeInput(input: unknown): EmployeeUpdate {
     positionId: String(body.positionId ?? "").trim(),
     employmentType: parseContractType(body.employmentType),
     employmentStatus: parseContractStatus(body.employmentStatus),
-    startDate: String(body.startDate ?? "").trim(),
+    startDate: String(body.startDate ?? "").trim() || getCurrentBangkokDate(),
     contractEndDate: String(body.contractEndDate ?? "").trim(),
-    probationCompletionDate: String(body.probationCompletionDate ?? "").trim(),
+    probationCompletionDate: "",
     supervisorEmployeeId: String(body.supervisorEmployeeId ?? "").trim(),
   };
 }
@@ -182,13 +200,12 @@ function validateEmployeeInput(values: EmployeeUpdate) {
   if (values.employmentType === "พนักงานสัญญาจ้าง" && !isValidDate(values.contractEndDate)) {
     return "กรุณาระบุวันสิ้นสุดสัญญาจ้าง";
   }
-  if (values.contractEndDate && !isValidDate(values.contractEndDate)) return "วันสิ้นสุดสัญญาไม่ถูกต้อง";
-  if (values.employmentStatus === "ทดลองงาน" && !isValidDate(values.probationCompletionDate)) {
-    return "กรุณาระบุวันครบทดลองงาน";
+  if (values.contractEndDate && !isValidDate(values.contractEndDate)) {
+    return "วันสิ้นสุดสัญญาไม่ถูกต้อง";
   }
-  if (values.probationCompletionDate && !isValidDate(values.probationCompletionDate)) return "วันครบทดลองงานไม่ถูกต้อง";
-  if (values.contractEndDate && values.contractEndDate < values.startDate) return "ต้องตั้งวันสิ้นสุดสัญญาหลังวันเริ่มงาน";
-  if (values.probationCompletionDate && values.probationCompletionDate < values.startDate) return "ต้องตั้งวันครบทดลองงานหลังวันเริ่มงาน";
+  if (values.contractEndDate && values.contractEndDate < values.startDate) {
+    return "ต้องตั้งวันสิ้นสุดสัญญาหลังวันเริ่มงาน";
+  }
   if (values.supervisorEmployeeId && !employeeCodePattern.test(values.supervisorEmployeeId)) {
     return "ผู้บังคับบัญชาไม่ถูกต้อง";
   }
@@ -218,20 +235,25 @@ function parseContractStatus(value: unknown): EmployeeUpdate["employmentStatus"]
   throw new EmployeeServiceError("กรุณาเลือกสถานะการจ้างงาน", 400);
 }
 
+function parseContractType(value: unknown): ContractType {
+  if (
+    value === "พนักงานประจำ" ||
+    value === "พนักงานสัญญาจ้าง" ||
+    value === "ฟรีแลนซ์" ||
+    value === "พนักงานพาร์ทไทม์"
+  ) return value;
+  throw new EmployeeServiceError("กรุณาเลือกประเภทการจ้างงาน", 400);
+}
+
 export class EmployeeServiceError extends Error {
-  constructor(
-    message: string,
-    public readonly status: number,
-  ) {
+  constructor(message: string, public readonly status: number) {
     super(message);
   }
 }
 
 function serializeEmployee(row: Awaited<ReturnType<typeof findEmployeesWithCurrentDetails>>[number]) {
-  const { employee, personalInfo: personal, contract, positionHistory, position, department } =
-    row;
-  const employmentStatus = contract?.employmentStatus ?? "ปฏิบัติงาน";
-  const status = toUiStatus(employmentStatus);
+  const { employee, personalInfo: personal, contract, positionHistory, position, department } = row;
+  const employmentStatus = toContractStatus(contract?.employmentStatus);
   const contractEndDate = contract?.endDate ?? "";
   const probationCompletionDate = contract?.probationEndDate ?? "";
   const deadline = probationCompletionDate || contractEndDate;
@@ -267,30 +289,24 @@ function serializeEmployee(row: Awaited<ReturnType<typeof findEmployeesWithCurre
     contractEndDate,
     probationCompletionDate,
     daysUntilEnd: deadline ? daysUntil(deadline) : null,
-    status,
+    status: toUiStatus(employmentStatus),
   };
 }
 
 function daysUntil(dateValue: string) {
-  const today = new Date();
-  const todayUtc = Date.UTC(
-    today.getUTCFullYear(),
-    today.getUTCMonth(),
-    today.getUTCDate(),
-  );
+  const today = getCurrentBangkokDate();
+  const todayUtc = Date.parse(`${today}T00:00:00Z`);
   const deadlineUtc = Date.parse(`${dateValue}T00:00:00Z`);
   return Math.max(0, Math.ceil((deadlineUtc - todayUtc) / 86_400_000));
 }
 
-function toUiStatus(
-  status: string | null | undefined,
-): "Active" | "Probation" | "Inactive" {
+function toContractStatus(status: string | null | undefined): EmployeeUpdate["employmentStatus"] {
+  if (status === "ทดลองงาน" || status === "พ้นสภาพ") return status;
+  return "ปฏิบัติงาน";
+}
+
+function toUiStatus(status: EmployeeUpdate["employmentStatus"]): "Active" | "Probation" | "Inactive" {
   if (status === "ทดลองงาน") return "Probation";
   if (status === "พ้นสภาพ") return "Inactive";
   return "Active";
-}
-
-function parseContractType(value: unknown): ContractType {
-  if (value === "พนักงานประจำ" || value === "พนักงานสัญญาจ้าง" || value === "ฟรีแลนซ์" || value === "พนักงานพาร์ทไทม์") return value;
-  throw new EmployeeServiceError("กรุณาเลือกประเภทการจ้างงาน", 400);
 }

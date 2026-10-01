@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import type { Employee } from "@/types/employee";
+import type { Employee, EmployeeListResponse } from "@/types/employee";
 
 type EmployeeStatusFilter = "all" | Employee["status"];
 
@@ -38,18 +38,7 @@ export function useEmployees({
           status: statusFilter,
         });
         const response = await fetch(`/api/employees?${params.toString()}`);
-        const body = (await response.json()) as
-          | {
-              employees: Employee[];
-              pagination: {
-                page: number;
-                total: number;
-                totalPages: number;
-                active: number;
-                probation: number;
-              };
-            }
-          | { error: string };
+        const body = (await response.json()) as EmployeeListResponse | { error: string };
 
         if (!response.ok || !("employees" in body)) {
           throw new Error("error" in body ? body.error : "Unable to load employees");
@@ -58,7 +47,7 @@ export function useEmployees({
         if (isCurrent) {
           setEmployees(body.employees);
           setSelected(body.employees[0] ?? null);
-          setTotalEmployees(body.pagination.total);
+          setTotalEmployees(body.pagination.totalRecords);
           setTotalPages(body.pagination.totalPages);
           setActiveEmployees(body.pagination.active);
           setProbationEmployees(body.pagination.probation);

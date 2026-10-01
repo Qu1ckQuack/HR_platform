@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1790155893441,
-      "tag": "0000_wonderful_titania",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1790157348574,
-      "tag": "0001_lowly_hardball",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1790313722636,
-      "tag": "0002_flashy_bishop",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1790313962355,
-      "tag": "0003_bored_swordsman",
+      "when": 1790823387700,
+      "tag": "0001_hr_system_schema",
       "breakpoints": true
     }
   ]

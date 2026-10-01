@@ -79,7 +79,6 @@ async function main() {
       code: string,
       name: string,
       departmentId: string,
-      isHrRole: boolean,
     ) => {
       const existing = await tx
         .select()
@@ -95,7 +94,7 @@ async function main() {
 
       const [created] = await tx
         .insert(positions)
-        .values({ positionName: name, departmentId, isHrRole })
+        .values({ positionName: name, departmentId })
         .returning();
       if (!created) throw new Error(`Unable to create position ${code}.`);
       return created;
@@ -108,14 +107,13 @@ async function main() {
     }
 
     const positionByCode = new Map<string, string>();
-    for (const [code, name, departmentCode, isHrRole] of positionSeed) {
+    for (const [code, name, departmentCode] of positionSeed) {
       const departmentId = departmentByCode.get(departmentCode);
       if (!departmentId) throw new Error(`Missing department ${departmentCode}.`);
       const position = await getOrCreatePosition(
         code,
         name,
         departmentId,
-        isHrRole,
       );
       positionByCode.set(code, position.id);
     }
@@ -150,11 +148,12 @@ async function main() {
           await tx
             .insert(employees)
             .values({
-              employeeCode: `EMP-${String(index + 1).padStart(4, "0")}`,
               prefix,
+              nickname: firstName,
               firstName,
               lastName,
               companyEmail,
+              sex: prefix === "นาย" ? "ชาย" : "หญิง",
             })
             .returning()
         )[0];
@@ -183,9 +182,10 @@ async function main() {
             .insert(employmentContracts)
             .values({
               employeeId: employee.id,
-              employmentType: index === 3 ? "ทดลองงาน" : "ประจำ",
-              employmentStatus: index === 3 ? "ทดลองงาน" : "จ้างงาน",
+              employmentType: "พนักงานประจำ",
+              employmentStatus: index === 3 ? "ทดลองงาน" : "ปฏิบัติงาน",
               startDate: "2024-01-15",
+              probationEndDate: index === 3 ? "2024-04-15" : null,
             })
             .returning()
         )[0];
@@ -224,18 +224,18 @@ async function main() {
           .from(user)
           .where(eq(user.email, adminEmail))
           .limit(1);
-        const linkedEmployee = admin
+        const linkedUser = admin
           ? await tx
-              .select({ id: employees.id })
-              .from(employees)
-              .where(eq(employees.authUserId, admin.id))
+              .select({ id: user.id })
+              .from(user)
+              .where(eq(user.employeeId, employee.id))
               .limit(1)
           : [];
-        if (admin && !employee.authUserId && !linkedEmployee[0]) {
+        if (admin && admin.employeeId !== employee.id && !linkedUser[0]) {
           await tx
-            .update(employees)
-            .set({ authUserId: admin.id, updatedAt: new Date() })
-            .where(eq(employees.id, employee.id));
+            .update(user)
+            .set({ employeeId: employee.id, updatedAt: new Date() })
+            .where(eq(user.id, admin.id));
         }
       }
     }

@@ -1,96 +1,19 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
-
-import { db } from "@/db";
-import {
-  departments,
-  employees,
-  employmentContracts,
-  personalInfo,
-  positionHistories,
-  positions,
-} from "@/db/business-schema";
+import { createEmployee, EmployeeServiceError, listEmployees } from "@/services/employee.service";
+import { requireHrSession } from "@/lib/require-hr-session";
 
 export const dynamic = "force-dynamic";
-const PAGE_SIZE = 10;
 
 export async function GET(request: Request) {
+  const authorization = await requireHrSession(request.headers);
+  if (!authorization.session) return authorization.response;
   try {
     const url = new URL(request.url);
     const requestedPage = Number.parseInt(url.searchParams.get("page") ?? "1", 10);
     const search = url.searchParams.get("search")?.trim().toLocaleLowerCase() ?? "";
     const statusFilter = url.searchParams.get("status") ?? "all";
-    const page = Number.isFinite(requestedPage) && requestedPage > 0
-      ? requestedPage
-      : 1;
-    const rows = await db
-      .select({
-        employee: employees,
-        personalInfo,
-        contract: employmentContracts,
-        positionHistory: positionHistories,
-        position: positions,
-        department: departments,
-      })
-      .from(employees)
-      .leftJoin(personalInfo, eq(personalInfo.employeeId, employees.id))
-      .leftJoin(
-        employmentContracts,
-        eq(employmentContracts.employeeId, employees.id),
-      )
-      .leftJoin(
-        positionHistories,
-        and(
-          eq(positionHistories.contractId, employmentContracts.id),
-          isNull(positionHistories.effectiveTo),
-        ),
-      )
-      .leftJoin(positions, eq(positions.id, positionHistories.positionId))
-      .leftJoin(departments, eq(departments.id, positions.departmentId))
-      .orderBy(employees.createdAt, desc(employmentContracts.startDate));
-
-    const employeeMap = new Map<string, ReturnType<typeof serializeEmployee>>();
-    for (const row of rows) {
-      if (!employeeMap.has(row.employee.id)) {
-        employeeMap.set(row.employee.id, serializeEmployee(row));
-      }
-    }
-
-    const searchResults = Array.from(employeeMap.values()).filter((employee) => {
-      const matchesSearch =
-        !search ||
-        [
-          employee.id,
-          employee.name,
-          employee.firstNameThai,
-          employee.lastNameThai,
-          employee.businessEmail,
-          employee.department,
-          employee.position,
-          employee.employmentType,
-        ].some((value) => value.toLocaleLowerCase().includes(search));
-      return matchesSearch;
-    });
-    const filteredEmployees = searchResults.filter(
-      (employee) => statusFilter === "all" || employee.status === statusFilter,
+    return Response.json(
+      await listEmployees({ requestedPage, search, statusFilter }),
     );
-    const total = filteredEmployees.length;
-    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-    const currentPage = Math.min(page, totalPages);
-    const start = (currentPage - 1) * PAGE_SIZE;
-
-    return Response.json({
-      employees: filteredEmployees.slice(start, start + PAGE_SIZE),
-      pagination: {
-        page: currentPage,
-        pageSize: PAGE_SIZE,
-        total,
-        totalPages,
-        active: searchResults.filter((employee) => employee.status === "Active").length,
-        probation: searchResults.filter(
-          (employee) => employee.status === "Probation",
-        ).length,
-      },
-    });
   } catch (error) {
     console.error("Unable to load employees from PostgreSQL:", error);
     return Response.json(
@@ -100,48 +23,18 @@ export async function GET(request: Request) {
   }
 }
 
-function serializeEmployee(row: {
-  employee: typeof employees.$inferSelect;
-  personalInfo: typeof personalInfo.$inferSelect | null;
-  contract: typeof employmentContracts.$inferSelect | null;
-  positionHistory: typeof positionHistories.$inferSelect | null;
-  position: typeof positions.$inferSelect | null;
-  department: typeof departments.$inferSelect | null;
-}) {
-  const { employee, personalInfo: personal, contract, position, department } =
-    row;
-  const status = toUiStatus(contract?.employmentStatus);
+export async function POST(request: Request) {
+  const authorization = await requireHrSession(request.headers);
+  if (!authorization.session) return authorization.response;
 
-  return {
-    id: employee.employeeCode,
-    databaseId: employee.id,
-    displayId: employee.employeeCode,
-    color: "bg-sky-500",
-    initials: `${employee.firstName.slice(0, 1)}${employee.lastName.slice(0, 1)}`,
-    name: `${employee.prefix ? `${employee.prefix} ` : ""}${employee.firstName} ${employee.lastName}`,
-    prefix: employee.prefix ?? "",
-    nickname: employee.nickname ?? "",
-    firstNameThai: employee.firstName,
-    lastNameThai: employee.lastName,
-    englishName: employee.englishName ?? "",
-    citizenId: personal?.nationalId ?? "",
-    businessEmail: employee.companyEmail,
-    phone: employee.phone ?? "",
-    department: department?.departmentName ?? "ยังไม่ระบุ",
-    departmentId: row.positionHistory?.departmentId ?? "",
-    position: position?.positionName ?? "ยังไม่ระบุ",
-    positionId: position?.id ?? "",
-    supervisorEmployeeId: row.positionHistory?.supervisorEmployeeId ?? "",
-    employmentType: contract?.employmentType ?? "ยังไม่ระบุ",
-    startDate: contract?.startDate ?? "",
-    status,
-  };
-}
-
-function toUiStatus(
-  status: string | null | undefined,
-): "Active" | "Probation" | "Inactive" {
-  if (status === "ทดลองงาน") return "Probation";
-  if (status === "พ้นสภาพ") return "Inactive";
-  return "Active";
+  try {
+    const result = await createEmployee(authorization.session.user.id, await request.json());
+    return Response.json(result, { status: 201 });
+  } catch (error) {
+    if (error instanceof EmployeeServiceError) {
+      return Response.json({ error: error.message }, { status: error.status });
+    }
+    console.error("Unable to create employee:", error);
+    return Response.json({ error: "ไม่สามารถสร้างข้อมูลพนักงานได้" }, { status: 500 });
+  }
 }

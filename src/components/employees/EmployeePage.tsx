@@ -1,6 +1,6 @@
 "use client";
 
-import { type SubmitEvent, useState, useEffect } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -27,13 +27,15 @@ import type { Employee } from "@/types/employee";
 import { useEmployees } from "@/hooks/useEmployees";
 import { InfoSection } from "@/components/ui/InfoSection";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { StatusBadge } from "@/shared/components/StatusBadge";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 
 export default function EmployeePage() {
   const router = useRouter();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | Employee["status"]>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | Employee["status"]>(
+    "all",
+  );
   const {
     employees,
     selected,
@@ -55,18 +57,30 @@ export default function EmployeePage() {
     if (mode === "edit") setModal(true);
     else setDrawer(true);
   };
+  const startCreate = () => {
+    setSelected(null);
+    setModal(true);
+  };
   return (
     <main className="min-h-screen bg-[#f4f7fa] text-slate-700">
       <header className="flex min-h-14 items-center justify-between gap-3 border-b border-gray-400 bg-white px-3 py-2 shadow-sm sm:px-5">
         <div className="flex items-center gap-3">
-          <button className="min-h-10 min-w-10 text-xl" title="Not implemented yet"><FontAwesomeIcon icon={faBars} className="h-5 w-5" /></button>
+          <button
+            className="min-h-10 min-w-10 text-xl"
+            title="Not implemented yet"
+          >
+            <FontAwesomeIcon icon={faBars} className="h-5 w-5" />
+          </button>
           <p className="hidden text-sm sm:block">
             <FontAwesomeIcon icon={faHome} className="mr-1 h-4 w-4" />
             <b>ทะเบียนพนักงาน</b>
           </p>
         </div>
         <div className="flex items-center gap-2 *:cursor-pointer">
-          <button className="hidden rounded-md bg-[#102d59] px-4 py-2 text-sm font-semibold text-white sm:block">
+          <button
+            onClick={startCreate}
+            className="hidden rounded-md bg-[#102d59] px-4 py-2 text-sm font-semibold text-white sm:block"
+          >
             ＋ สร้างรายการ
           </button>
           <button
@@ -116,7 +130,10 @@ export default function EmployeePage() {
               <FontAwesomeIcon icon={faFileImport} className="mr-1 h-4 w-4" />
               นำเข้า
             </button>
-            <button className="min-h-10 rounded-md bg-[#102d59] px-3 text-sm font-semibold text-white">
+            <button
+              onClick={startCreate}
+              className="min-h-10 rounded-md bg-[#102d59] px-3 text-sm font-semibold text-white"
+            >
               <FontAwesomeIcon icon={faUserPlus} className="mr-1 h-4 w-4" />
               เพิ่มพนักงาน
             </button>
@@ -156,18 +173,18 @@ export default function EmployeePage() {
                 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
               />
             )}
-          
+
             <input
               type="text"
               className="min-h-11 w-full rounded-md border border-gray-400 px-3 text-sm sm:flex-1"
-              placeholder={ isFocused ? "" : "     ค้นหา ชื่อ, รหัส, อีเมล..." }
+              placeholder={isFocused ? "" : "     ค้นหา ชื่อ, รหัส, อีเมล..."}
               value={search}
               onChange={(event) => {
                 setSearch(event.target.value);
                 setPage(1);
               }}
-              onFocus={() => setIsFocused(true)} 
-              onBlur={() => setIsFocused(false)} 
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
             />
             <select className="min-h-11 rounded-md border border-gray-400 px-3 text-sm cursor-pointer">
               <option>ทุกหน่วยงาน</option>
@@ -202,100 +219,117 @@ export default function EmployeePage() {
                 </tr>
               </thead>
               <tbody>
-                {isLoading && (
+                {isLoading &&
                   Array.from({ length: 10 }, (_, index) => (
                     <EmployeeSkeletonRow key={`employee-skeleton-${index}`} />
-                  ))
-                )}
+                  ))}
                 {!isLoading && loadError && (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-sm text-red-600">
+                    <td
+                      colSpan={7}
+                      className="p-8 text-center text-sm text-red-600"
+                    >
                       {loadError}
                     </td>
                   </tr>
                 )}
                 {!isLoading && !loadError && employees.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-sm text-slate-500">
+                    <td
+                      colSpan={7}
+                      className="p-8 text-center text-sm text-slate-500"
+                    >
                       ไม่พบข้อมูลพนักงาน
                     </td>
                   </tr>
                 )}
-                {!isLoading && !loadError && employees.map((employee) => (
-                  <tr
-                    key={employee.id}
-                    className="border-b border-gray-300 last:border-0 hover:bg-blue-50/40"
-                  >
-                    <td className="p-3 font-mono text-xs text-slate-500 sm:p-4">
-                      {employee.id}
-                    </td>
-                    <td className="p-3 sm:p-4">
-                      <div className="flex items-center gap-2 sm:gap-3">
-                        <div
-                          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-slate-200 text-slate-500"
-                        >
-                          <FontAwesomeIcon icon={faUser} className="h-5 w-5" />
+                {!isLoading &&
+                  !loadError &&
+                  employees.map((employee) => (
+                    <tr
+                      key={employee.id}
+                      className="border-b border-gray-300 last:border-0 hover:bg-blue-50/40"
+                    >
+                      <td className="p-3 font-mono text-xs text-slate-500 sm:p-4">
+                        {employee.id}
+                      </td>
+                      <td className="p-3 sm:p-4">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-slate-200 text-slate-500">
+                            <FontAwesomeIcon
+                              icon={faUser}
+                              className="h-5 w-5"
+                            />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-slate-800">
+                              {employee.name}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {employee.englishName}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-slate-800">
-                            {employee.name}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {employee.englishName}
-                          </p>
+                      </td>
+                      <td className="hidden p-4 sm:table-cell">
+                        <p>{employee.department}</p>
+                        <p className="text-xs text-slate-500">
+                          {employee.position}
+                        </p>
+                      </td>
+                      <td className="p-3 sm:p-4">
+                        <StatusBadge status={employee.status} />
+                      </td>
+                      <td className="hidden p-4 md:table-cell">
+                        {employee.startDate}
+                      </td>
+                      <td className="hidden max-w-56 p-4 text-center md:table-cell">
+                        <p className="whitespace-nowrap text-xs">
+                          {formatContractDeadline(employee)}
+                        </p>
+                      </td>
+                      <td className="p-3 text-right sm:p-4">
+                        <div className="flex justify-end gap-2 whitespace-nowrap text-[#102d59]">
+                          <button
+                            onClick={() => open(employee, "view")}
+                            className="min-h-10 min-w-10 rounded hover:bg-slate-100"
+                            aria-label="Show employee"
+                          >
+                            <FontAwesomeIcon icon={faEye} className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => open(employee, "edit")}
+                            className="min-h-10 min-w-10 rounded hover:bg-slate-100"
+                            aria-label="Edit employee"
+                          >
+                            <FontAwesomeIcon
+                              icon={faPenToSquare}
+                              className="h-4 w-4"
+                            />
+                          </button>
+                          <button
+                            title="Not implemented yet"
+                            className="min-h-10 min-w-10 rounded"
+                            aria-label="History"
+                          >
+                            <FontAwesomeIcon
+                              icon={faClockRotateLeft}
+                              className="h-4 w-4"
+                            />
+                          </button>
+                          <button
+                            className="min-h-10 min-w-10 text-red-500 rounded hover:bg-slate-100"
+                            aria-label="Delete employee"
+                          >
+                            <FontAwesomeIcon
+                              icon={faTrashCan}
+                              className="h-4 w-4"
+                            />
+                          </button>
                         </div>
-                      </div>
-                    </td>
-                    <td className="hidden p-4 sm:table-cell">
-                      <p>{employee.department}</p>
-                      <p className="text-xs text-slate-500">
-                        {employee.position}
-                      </p>
-                    </td>
-                    <td className="p-3 sm:p-4">
-                      <StatusBadge status={employee.status} />
-                    </td>
-                    <td className="hidden p-4 md:table-cell">
-                      {employee.startDate}
-                    </td>
-                    <td className="hidden max-w-56 p-4 text-center md:table-cell">
-                      <p className="whitespace-nowrap text-xs">
-                        {formatContractDeadline(employee)}
-                      </p>
-                    </td>
-                    <td className="p-3 text-right sm:p-4">
-                      <div className="flex justify-end gap-2 whitespace-nowrap text-[#102d59]">
-                        <button
-                          onClick={() => open(employee, "view")}
-                          className="min-h-10 min-w-10 rounded hover:bg-slate-100"
-                          aria-label="Show employee"
-                        >
-                          <FontAwesomeIcon icon={faEye} className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => open(employee, "edit")}
-                          className="min-h-10 min-w-10 rounded hover:bg-slate-100"
-                          aria-label="Edit employee"
-                        >
-                          <FontAwesomeIcon icon={faPenToSquare} className="h-4 w-4" />
-                        </button>
-                        <button
-                          title="Not implemented yet"
-                          className="min-h-10 min-w-10 rounded"
-                          aria-label="History"
-                        >
-                          <FontAwesomeIcon icon={faClockRotateLeft} className="h-4 w-4" />
-                        </button>
-                        <button
-                          className="min-h-10 min-w-10 text-red-500 rounded hover:bg-slate-100"
-                          aria-label="Delete employee"
-                        >
-                          <FontAwesomeIcon icon={faTrashCan} className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
@@ -314,7 +348,9 @@ export default function EmployeePage() {
               >
                 ‹
               </button>
-              <b className="rounded bg-[#102d59] px-3 py-2 text-white">{page}</b>
+              <b className="rounded bg-[#102d59] px-3 py-2 text-white">
+                {page}
+              </b>
               <button
                 type="button"
                 aria-label="หน้าถัดไป"
@@ -328,7 +364,7 @@ export default function EmployeePage() {
           </footer>
         </section>
       </section>
-      {modal && selected && (
+      {modal && (
         <EditModal
           employee={selected}
           close={() => setModal(false)}
@@ -426,16 +462,23 @@ function formatContractDeadline(employee: Employee) {
 type EmployeeEditForm = {
   prefix: string;
   nickname: string;
+  sex: Employee["sex"];
   firstNameThai: string;
   lastNameThai: string;
   englishName: string;
   citizenId: string;
+  bankAccount: string;
+  location: string;
+  personalEmail: string;
   businessEmail: string;
   phone: string;
   departmentId: string;
   positionId: string;
   employmentType: string;
+  employmentStatus: Employee["employmentStatus"];
   startDate: string;
+  contractEndDate: string;
+  probationCompletionDate: string;
   supervisorEmployeeId: string;
 };
 
@@ -473,7 +516,8 @@ function FormInput({
 }: FormInputProps) {
   return (
     <label className="text-sm font-medium text-slate-700">
-      {label}{required && <span className="ml-1 text-red-500">*</span>}
+      {label}
+      {required && <span className="ml-1 text-red-500">*</span>}
       <input
         required={required}
         readOnly={readOnly}
@@ -509,7 +553,8 @@ function FormSelect({
 }: FormSelectProps) {
   return (
     <label className={`text-sm font-medium text-slate-700 ${className}`}>
-      {label}{required && <span className="ml-1 text-red-500">*</span>}
+      {label}
+      {required && <span className="ml-1 text-red-500">*</span>}
       <select
         required={required}
         value={value}
@@ -518,9 +563,10 @@ function FormSelect({
       >
         <option value="">{emptyLabel}</option>
         {options.map((option) => {
-          const normalized = typeof option === "string"
-            ? { value: option, label: option }
-            : option;
+          const normalized =
+            typeof option === "string"
+              ? { value: option, label: option }
+              : option;
           return (
             <option key={normalized.value} value={normalized.value}>
               {normalized.label}
@@ -533,7 +579,10 @@ function FormSelect({
 }
 
 function formatWithGroups(value: string, groups: number[]) {
-  const digits = value.replace(/\D/g, "").slice(0, groups.reduce((total, size) => total + size, 0));
+  const digits = value.replace(/\D/g, "").slice(
+    0,
+    groups.reduce((total, size) => total + size, 0),
+  );
   let cursor = 0;
   return groups
     .map((size) => {
@@ -558,24 +607,34 @@ function EditModal({
   close,
   onSaved,
 }: {
-  employee: Employee;
+  employee: Employee | null;
   close: () => void;
   onSaved: () => void;
 }) {
   const [form, setForm] = useState<EmployeeEditForm>(() => ({
-    prefix: employee.prefix,
-    nickname: employee.nickname,
-    firstNameThai: employee.firstNameThai,
-    lastNameThai: employee.lastNameThai,
-    englishName: employee.englishName,
-    citizenId: employee.citizenId,
-    businessEmail: employee.businessEmail,
-    phone: employee.phone,
-    departmentId: employee.departmentId,
-    positionId: employee.positionId,
-    employmentType: employee.employmentType,
-    startDate: employee.startDate,
-    supervisorEmployeeId: employee.supervisorEmployeeId,
+    prefix: employee?.prefix ?? "",
+    nickname: employee?.nickname ?? "",
+    sex: employee?.sex ?? "อื่นๆ",
+    firstNameThai: employee?.firstNameThai ?? "",
+    lastNameThai: employee?.lastNameThai ?? "",
+    englishName: employee?.englishName ?? "",
+    citizenId: employee?.citizenId ?? "",
+    bankAccount: employee?.bankAccount ?? "",
+    location: employee?.location ?? "",
+    personalEmail: employee?.personalEmail ?? "",
+    businessEmail: employee?.businessEmail ?? "",
+    phone: employee?.phone ?? "",
+    departmentId: employee?.departmentId ?? "",
+    positionId: employee?.positionId ?? "",
+    employmentType:
+      employee?.employmentType === "ยังไม่ระบุ"
+        ? "พนักงานประจำ"
+        : (employee?.employmentType ?? "พนักงานประจำ"),
+    employmentStatus: employee?.employmentStatus || "ปฏิบัติงาน",
+    startDate: employee?.startDate ?? "",
+    contractEndDate: employee?.contractEndDate ?? "",
+    probationCompletionDate: employee?.probationCompletionDate ?? "",
+    supervisorEmployeeId: employee?.supervisorEmployeeId ?? "",
   }));
   const [options, setOptions] = useState<EmployeeFormOptions>({
     departments: [],
@@ -592,9 +651,13 @@ function EditModal({
     async function loadOptions() {
       try {
         const response = await fetch("/api/employees/options");
-        const body = (await response.json()) as EmployeeFormOptions | { error: string };
+        const body = (await response.json()) as
+          | EmployeeFormOptions
+          | { error: string };
         if (!response.ok || !("departments" in body)) {
-          throw new Error("error" in body ? body.error : "Unable to load options");
+          throw new Error(
+            "error" in body ? body.error : "Unable to load options",
+          );
         }
         if (isCurrent) setOptions(body);
       } catch (error) {
@@ -614,28 +677,35 @@ function EditModal({
   );
   const supervisors = options.supervisors.filter(
     (supervisor) =>
-      supervisor.departmentId === form.departmentId && supervisor.id !== employee.databaseId,
+      supervisor.departmentId === form.departmentId &&
+      supervisor.id !== employee?.databaseId,
   );
   const setField = <K extends keyof EmployeeEditForm>(
     field: K,
     value: EmployeeEditForm[K],
   ) => setForm((current) => ({ ...current, [field]: value }));
 
-  const submit = async (event: SubmitEvent<HTMLFormElement>) => {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormError("");
     setIsSaving(true);
     try {
-      const response = await fetch(`/api/employees/${employee.databaseId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
+      const response = await fetch(
+        employee ? `/api/employees/${employee.databaseId}` : "/api/employees",
+        {
+          method: employee ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        },
+      );
       const body = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(body.error ?? "Unable to save employee");
+      if (!response.ok)
+        throw new Error(body.error ?? "Unable to save employee");
       onSaved();
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "ไม่สามารถบันทึกข้อมูลได้");
+      setFormError(
+        error instanceof Error ? error.message : "ไม่สามารถบันทึกข้อมูลได้",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -653,26 +723,35 @@ function EditModal({
         <header className="sticky top-0 flex justify-between border-b bg-white p-4 sm:p-5">
           <div>
             <h2 className="font-bold text-slate-900 sm:text-xl">
-              แก้ไขข้อมูลพนักงาน
+              {employee ? "แก้ไขข้อมูลพนักงาน" : "เพิ่มพนักงาน"}
             </h2>
             <p className="text-xs text-slate-500 sm:text-sm">
               ช่องที่มี * จำเป็นต้องกรอก - ตรวจสอบไฟล์ซ้ำที่ Server
             </p>
           </div>
-          <button
-            type="button"
-            onClick={close}
-            className="hover:text-red-500"
-          >
+          <button type="button" onClick={close} className="hover:text-red-500">
             <FontAwesomeIcon icon={faXmark} className="h-4 w-4" />
           </button>
         </header>
         <form onSubmit={submit}>
           <div className="space-y-6 p-4 sm:p-5">
             <fieldset className="space-y-3">
-              <legend className="text-base font-bold text-slate-900">ข้อมูลส่วนบุคคล</legend>
+              <legend className="text-base font-bold text-slate-900">
+                ข้อมูลส่วนบุคคล
+              </legend>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <FormInput label="รหัสพนักงาน" required value={employee.id} readOnly />
+                {employee ? (
+                  <FormInput
+                    label="รหัสพนักงาน"
+                    required
+                    value={employee.id}
+                    readOnly
+                  />
+                ) : (
+                  <p className="self-center text-sm text-slate-500">
+                    ระบบจะสร้างรหัสพนักงานให้อัตโนมัติ
+                  </p>
+                )}
                 <FormSelect
                   label="คำนำหน้า"
                   required
@@ -710,7 +789,9 @@ function EditModal({
                   value={form.citizenId}
                   inputMode="numeric"
                   placeholder="x-xxxx-xxxxx-xx-x"
-                  onChange={(value) => setField("citizenId", formatCitizenId(value))}
+                  onChange={(value) =>
+                    setField("citizenId", formatCitizenId(value))
+                  }
                 />
                 <FormInput
                   label="อีเมลบริษัท"
@@ -720,17 +801,47 @@ function EditModal({
                   onChange={(value) => setField("businessEmail", value)}
                 />
                 <FormInput
+                  label="อีเมลส่วนตัว"
+                  required
+                  type="email"
+                  value={form.personalEmail}
+                  onChange={(value) => setField("personalEmail", value)}
+                />
+                <FormInput
+                  label="บัญชีธนาคาร"
+                  required
+                  value={form.bankAccount}
+                  onChange={(value) => setField("bankAccount", value)}
+                />
+                <FormInput
+                  label="ที่อยู่"
+                  required
+                  value={form.location}
+                  onChange={(value) => setField("location", value)}
+                />
+                <FormInput
                   label="โทรศัพท์"
                   placeholder="xxx-xxx-xxxx"
                   inputMode="tel"
                   value={form.phone}
                   onChange={(value) => setField("phone", formatPhone(value))}
                 />
+                <FormSelect
+                  label="เพศ"
+                  required
+                  value={form.sex}
+                  onChange={(value) =>
+                    setField("sex", value as EmployeeEditForm["sex"])
+                  }
+                  options={["ชาย", "หญิง", "อื่นๆ"]}
+                />
               </div>
             </fieldset>
 
             <fieldset className="space-y-3">
-              <legend className="text-base font-bold text-slate-900">ข้อมูลการจ้างงาน</legend>
+              <legend className="text-base font-bold text-slate-900">
+                ข้อมูลการจ้างงาน
+              </legend>
               <div className="grid gap-4 sm:grid-cols-2">
                 <FormSelect
                   label="หน่วยงาน"
@@ -764,7 +875,12 @@ function EditModal({
                   required
                   value={form.employmentType}
                   onChange={(value) => setField("employmentType", value)}
-                  options={["ประจำ", "พาร์ทไทม์", "สัญญาจ้างชั่วคราว", "ฟรีแลนซ์"]}
+                  options={[
+                    "พนักงานประจำ",
+                    "พนักงานพาร์ทไทม์",
+                    "พนักงานสัญญาจ้าง",
+                    "ฟรีแลนซ์",
+                  ]}
                 />
                 <FormInput
                   label="วันที่เริ่มงาน"
@@ -773,6 +889,36 @@ function EditModal({
                   value={form.startDate}
                   onChange={(value) => setField("startDate", value)}
                 />
+                <FormSelect
+                  label="สถานะการจ้างงาน"
+                  required
+                  value={form.employmentStatus}
+                  onChange={(value) =>
+                    setField(
+                      "employmentStatus",
+                      value as EmployeeEditForm["employmentStatus"],
+                    )
+                  }
+                  options={["ทดลองงาน", "ปฏิบัติงาน", "พ้นสภาพ"]}
+                />
+                <FormInput
+                  label="วันสิ้นสุดสัญญา"
+                  type="date"
+                  required={form.employmentType === "พนักงานสัญญาจ้าง"}
+                  value={form.contractEndDate}
+                  onChange={(value) => setField("contractEndDate", value)}
+                />
+                {form.employmentStatus === "ทดลองงาน" && (
+                  <FormInput
+                    label="วันครบทดลองงาน"
+                    type="date"
+                    required
+                    value={form.probationCompletionDate}
+                    onChange={(value) =>
+                      setField("probationCompletionDate", value)
+                    }
+                  />
+                )}
                 <FormSelect
                   label="ผู้บังคับบัญชา"
                   value={form.supervisorEmployeeId}
@@ -787,15 +933,24 @@ function EditModal({
               </div>
             </fieldset>
 
-            {optionsError && <p className="text-sm text-red-600">{optionsError}</p>}
+            {optionsError && (
+              <p className="text-sm text-red-600">{optionsError}</p>
+            )}
             {formError && (
-              <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+              <p
+                role="alert"
+                className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"
+              >
                 {formError}
               </p>
             )}
           </div>
           <footer className="sticky bottom-0 flex justify-end gap-3 border-t bg-white p-4">
-            <button type="button" onClick={close} className="min-h-10 rounded-md border px-4 hover:bg-gray-200">
+            <button
+              type="button"
+              onClick={close}
+              className="min-h-10 rounded-md border px-4 hover:bg-gray-200"
+            >
               ยกเลิก
             </button>
             <button
@@ -803,6 +958,7 @@ function EditModal({
               disabled={isSaving}
               className="min-h-10 rounded-md bg-[#102d59] px-4 font-semibold text-white hover:bg-[#244675] disabled:cursor-wait disabled:opacity-60"
             >
+              <FontAwesomeIcon icon={faFloppyDisk} className="pr-1"/>
               {isSaving ? "กำลังบันทึก..." : "บันทึก"}
             </button>
           </footer>
@@ -830,9 +986,7 @@ function Drawer({
         <header className="bg-[linear-gradient(135deg,#fff,#e5efff)] p-4 sm:p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="flex gap-3">
-              <div
-                className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-slate-200 text-slate-500"
-              >
+              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-slate-200 text-slate-500">
                 <FontAwesomeIcon icon={faUser} className="h-8 w-8" />
               </div>
               <div>
@@ -866,9 +1020,15 @@ function Drawer({
           <button className="shrink-0 hover:border-b-2 border-[#102d59] py-4 text-[#102d59] hover:cursor-pointer">
             Profile
           </button>
-          <button className="shrink-0 py-4 hover:cursor-pointer">Employment</button>
-          <button className="shrink-0 py-4 hover:cursor-pointer">Attendance</button>
-          <button className="shrink-0 py-4 hover:cursor-pointer">Payroll</button>
+          <button className="shrink-0 py-4 hover:cursor-pointer">
+            Employment
+          </button>
+          <button className="shrink-0 py-4 hover:cursor-pointer">
+            Attendance
+          </button>
+          <button className="shrink-0 py-4 hover:cursor-pointer">
+            Payroll
+          </button>
         </nav>
         <div className="space-y-4 p-4 sm:p-5">
           <InfoSection

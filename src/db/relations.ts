@@ -11,7 +11,11 @@ import {
 } from "./business-schema";
 
 export const userRelations = relations(user, ({ one }) => ({
-  employee: one(employees),
+  employee: one(employees, {
+    fields: [user.employeeId],
+    references: [employees.id],
+    relationName: "employeeUser",
+  }),
 }));
 
 export const departmentRelations = relations(departments, ({ many }) => ({
@@ -28,9 +32,16 @@ export const positionRelations = relations(positions, ({ one, many }) => ({
 
 export const employeeRelations = relations(employees, ({ one, many }) => ({
   user: one(user, {
-    fields: [employees.authUserId],
-    references: [user.id],
+    fields: [employees.id],
+    references: [user.employeeId],
+    relationName: "employeeUser",
   }),
+  supervisor: one(employees, {
+    fields: [employees.supervisorEmployeeId],
+    references: [employees.id],
+    relationName: "employeeSupervisor",
+  }),
+  directReports: many(employees, { relationName: "employeeSupervisor" }),
   personalInfo: one(personalInfo),
   contracts: many(employmentContracts),
 }));
@@ -67,10 +78,6 @@ export const positionHistoryRelations = relations(
     position: one(positions, {
       fields: [positionHistories.positionId],
       references: [positions.id],
-    }),
-    supervisor: one(employees, {
-      fields: [positionHistories.supervisorEmployeeId],
-      references: [employees.id],
     }),
   }),
 );

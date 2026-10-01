@@ -2,7 +2,8 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 
-import { db } from "@/db";
+import { authDatabaseHooks } from "@/lib/auth-database-hooks";
+import { db } from "@/lib/db";
 
 const authSecret =
   process.env.BETTER_AUTH_SECRET ??
@@ -10,7 +11,7 @@ const authSecret =
     ? "local-development-secret-change-me-32-chars"
     : process.env.NEXT_PHASE === "phase-production-build"
       ? "build-only-secret-set-the-environment-variable"
-      : undefined);
+      : "");
 
 if (!authSecret) {
   throw new Error("BETTER_AUTH_SECRET must be set in production.");
@@ -20,6 +21,18 @@ export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
   secret: authSecret,
   database: drizzleAdapter(db, { provider: "pg" }),
+  databaseHooks: authDatabaseHooks,
+  user: {
+    additionalFields: {
+      employeeId: { type: "string", required: false, input: false },
+      role: { type: "string", required: false, input: false, defaultValue: "user" },
+    },
+  },
+  session: {
+    fields: {
+      userAgent: "deviceInfo",
+    },
+  },
   emailAndPassword: {
     enabled: true,
   },

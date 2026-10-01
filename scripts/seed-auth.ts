@@ -14,27 +14,32 @@ const password = process.env.SEED_ADMIN_PASSWORD ?? "ChangeMe123!";
 const name = process.env.SEED_ADMIN_NAME ?? "HR Administrator";
 
 async function main() {
+  const { eq } = await import("drizzle-orm");
+  const { db } = await import("../src/db");
+  const { user } = await import("../src/db/auth-schema");
   const { auth } = await import("../src/lib/auth");
+  const [existingUser] = await db
+    .select({ id: user.id })
+    .from(user)
+    .where(eq(user.email, email))
+    .limit(1);
 
-  try {
-    await auth.api.signUpEmail({
-      body: { email, password, name },
-    });
-  } catch (error) {
-    const cause =
-      typeof error === "object" && error !== null && "cause" in error
-        ? error.cause
-        : undefined;
-    const causeMessage =
-      cause instanceof Error
-        ? cause.message
-        : typeof cause === "object" && cause !== null && "message" in cause
-          ? String(cause.message)
-          : undefined;
-    const message = error instanceof Error ? error.message : "Unknown seed error";
-    const detail = causeMessage ? `${message}; cause: ${causeMessage}` : message;
-    throw new Error(`Unable to seed the admin user: ${detail}`);
+  if (!existingUser) {
+    try {
+      await auth.api.signUpEmail({ body: { email, password, name } });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown seed error";
+      throw new Error(`Unable to seed the admin user: ${message}`);
+    }
   }
+
+  const [updatedUser] = await db
+    .update(user)
+    .set({ role: "super_admin", emailVerified: true, updatedAt: new Date() })
+    .where(eq(user.email, email))
+    .returning({ id: user.id });
+
+  if (!updatedUser) throw new Error("Unable to promote the admin account.");
 
   console.log(`Seeded auth user: ${email}`);
 }

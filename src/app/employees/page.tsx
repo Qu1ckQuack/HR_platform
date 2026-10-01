@@ -1,4 +1,4 @@
-import EmployeePage from "@/features/employees/components/EmployeePage";
+import EmployeePage from "@/components/employees/EmployeePage";
 
 export default function EmployeesRoute() {
   return <EmployeePage />;

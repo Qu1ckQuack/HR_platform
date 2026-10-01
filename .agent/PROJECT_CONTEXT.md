@@ -14,6 +14,12 @@ This is employee manager web app for HR
 ```text
 my-app/
 │
+│
+├── scripts/                         
+│    │── ensure-database         # make sure database exists if not creat new one
+│    │── seed-auth               # generate seed super-user account
+│    │__ seed-employees          # generate employee seeds
+│
 ├── app/                         # Next.js routing + pages + HTTP endpoints
 │
 │   ├── (auth)/                  # Route group; doesn't appear in the URL
@@ -49,6 +55,8 @@ my-app/
 ├── lib/                         # Infrastructure/shared utilities
 │   ├── db.ts                    # Database connection
 │   ├── auth.ts                  # Authentication configuration/helpers
+│   ├── notification-tone.ts     # Notification sound configuration
+│   ├── require-hr-session.ts     # require-hr sessiond configuration
 │   └── utils.ts                 # Generic utilities
 │
 ├── services/                    # Business/application logic
@@ -65,8 +73,8 @@ my-app/
 │   └── product.ts
 │
 ├── hooks/                       # React custom hooks
-│   ├── useUser.ts
-│   └── useProducts.ts
+│   ├── useEmployeeNotification.ts
+│   └── loadEmployee.ts
 │
 ├── drizzle/                     # Database schema/migrations
 │   └── schema.drizzle
@@ -94,3 +102,4 @@ my-app/
 - Read the relevant local Next.js 16 documentation in
   `node_modules/next/dist/docs/` before changing Next.js code.
 - Write WORK_LOG everytime your task is complete `.agent/WORK_LOG.md`
+- Entity name was stored like this "Entity"

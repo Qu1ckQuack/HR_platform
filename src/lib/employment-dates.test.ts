@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  formatBuddhistDate,
   getCurrentBangkokDate,
   getProbationCompletionDate,
 } from "./employment-dates";
@@ -19,4 +20,8 @@ test("calculates probation completion 120 calendar days after start", () => {
 
 test("rejects an invalid start date", () => {
   assert.throws(() => getProbationCompletionDate("2026-02-30"), RangeError);
+});
+
+test("formats stored dates using the Buddhist calendar year", () => {
+  assert.equal(formatBuddhistDate("2026-10-01"), "01/10/2569");
 });

@@ -23,7 +23,7 @@ import {
   faUser,
 } from "@fortawesome/free-solid-svg-icons";
 import type { Employee } from "@/types/employee";
-import { useEmployees } from "@/hooks/useEmployees";
+import { useEmployees } from "@/hooks/loadEmployee";
 import { InfoSection } from "@/components/ui/InfoSection";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusBadge } from "@/shared/components/StatusBadge";
@@ -69,21 +69,21 @@ export default function EmployeePage() {
             ＋ สร้างรายการ
           </button>
           <button
-            title="Not implemented yet"
+            title="การตั้งค่า(ยังไม่เสร็จ)"
             className="min-h-10 min-w-10 rounded hover:bg-slate-100"
             aria-label="Show employee"
           >
             <FontAwesomeIcon icon={faGear} className="h-4 w-4" />
           </button>
           <button
-            title="Not implemented yet"
+            title="(ยังไม่เสร็จ)"
             className="min-h-10 min-w-10 rounded hover:bg-slate-100"
             aria-label="Show employee"
           >
             <FontAwesomeIcon icon={faExpand} className="h-4 w-4" />
           </button>
           <button
-            title="Not implemented yet"
+            title="การแจ้งเตือน"
             className="min-h-10 min-w-10 rounded hover:bg-slate-100"
             aria-label="Show employee"
           >
@@ -93,7 +93,7 @@ export default function EmployeePage() {
             onClick={() => router.push("/login")}
             className="min-h-10 min-w-10 rounded-full bg-slate-200 text-xs font-bold"
           >
-            AW
+            HR
           </button>
         </div>
       </header>

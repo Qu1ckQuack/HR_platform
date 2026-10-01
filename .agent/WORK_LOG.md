@@ -1,5 +1,14 @@
 # Work log
 
 - 2026-09-30: Added the HR system migration SQL for the PostgreSQL schema and aligned the Drizzle schema exports to the supplied design so the project now includes the new employee, contract, auth, and HR data model definitions.
+
 - 2026-10-01: Implemented protected employee creation and edit flows with atomic employee, personal-data, contract, and position-history writes; aligned Better Auth hooks and seed scripts with the HR schema. Verified with fresh TypeScript, lint, Drizzle journal checks, PostgreSQL migration execution, auth/employee seeds, and a rolled-back `create_employee` integration smoke test.
+
 - 2026-10-01: Fixed the undefined “ทั้งหมด” count: the service returned `pagination.totalRecords` while the hook read `pagination.total`. Aligned the response type and consumer. The existing start-date calendar now defaults to today in Bangkok; it is also the probation effective-from date, and the server derives probation completion as 120 calendar days later. Verified with strict TypeScript, ESLint, three date tests, a PostgreSQL count comparison (21 API records / 21 non-deleted rows), and a create-service smoke test that ignored a forged probation date.
+
+- 2026-10-01: Added Buddhist Era date formatting, HR notifications for due probation/expired contracts, protected approval and renewal routes, polling, and an original synthesized notification tone. Verified with production build, lint, four date tests, a live employee count (22 rows, including the admin employee without a contract), and PostgreSQL service integration for notifications, approval, and renewal.
+- 2026-10-01: Completed HR contract alerts and actions in the mounted employee page: Buddhist-year dates, expired-contract and probation-due notifications, probation approval, contract renewal, and polling with a synthesized alert tone. Verified the production build, lint, date tests, employee count (22 rows), PostgreSQL notification/approval/renewal flow, `/employees` returning 200, and notifications API returning 401 without a session.
+
+- 2026-10-01: Fixed fixed-term same-day expiry: `expire_contracts` now expires `พนักงานสัญญาจ้าง` when `end <= th_today()`, list/notification requests process due expiry first, notifications include end dates through today, and the list shows `หมดสัญญา` at 0 days. Added forward migration `0002`. Verified with a rollback-only PostgreSQL test (fixed-term changed/notified; regular type unchanged), strict TypeScript, lint, Drizzle journal check, and production build.
+
+- 2026-10-01: Added HR actions to reject due probation into `พ้นสภาพ` and delete a contract record only when its status is `พ้นสภาพ` (employee data is retained). Added guarded database functions and migration `0003`, positioned the notification panel against the viewport's right edge, and verified both actions in PostgreSQL plus TypeScript, lint, Drizzle journal, and production build.

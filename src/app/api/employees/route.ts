@@ -1,5 +1,10 @@
-import { createEmployee, EmployeeServiceError, listEmployees } from "@/services/employee.service";
-import { requireHrSession } from "@/lib/require-hr-session";
+import {
+  createEmployee,
+  EmployeeServiceError,
+  expireDueContracts,
+  listEmployees,
+} from "@/services/employee.service";
+import { requireHrSession } from "@/lib/role-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +16,7 @@ export async function GET(request: Request) {
     const requestedPage = Number.parseInt(url.searchParams.get("page") ?? "1", 10);
     const search = url.searchParams.get("search")?.trim().toLocaleLowerCase() ?? "";
     const statusFilter = url.searchParams.get("status") ?? "all";
+    await expireDueContracts(authorization.session.user.id);
     return Response.json(
       await listEmployees({ requestedPage, search, statusFilter }),
     );

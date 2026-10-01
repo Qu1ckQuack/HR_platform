@@ -1,5 +1,5 @@
 import { getEmployeeFormOptions } from "@/services/employee.service";
-import { requireHrSession } from "@/lib/require-hr-session";
+import { requireHrSession } from "@/lib/role-guard";
 
 export const dynamic = "force-dynamic";
 

@@ -1,8 +1,14 @@
 import {
+  approveProbationRecord,
+  cancelTerminatedContractRecord,
   createEmployeeRecord,
   EmployeeRepositoryError,
+  expireContractsForActor,
+  findEmployeeNotifications,
   findEmployeeFormOptions,
   findEmployeesWithCurrentDetails,
+  renewContractRecord,
+  rejectProbationRecord,
   updateEmployeeRecord,
 } from "@/repositories/employee.repository";
 import {
@@ -10,6 +16,7 @@ import {
   getProbationCompletionDate,
 } from "@/lib/employment-dates";
 import type { ContractType, EmployeeUpdate } from "@/types/employee";
+import type { NotificationData } from "@/types/notification-type";
 
 const PAGE_SIZE = 10;
 const prefixes = new Set(["นาย", "นางสาว", "นาง"]);
@@ -24,6 +31,7 @@ const phonePattern = /^\d{3}-\d{3}-\d{4}$/;
 const employeeCodePattern = /^EMP\d{5,}$/;
 const departmentCodePattern = /^DEP_\d{4,}$/;
 const positionCodePattern = /^POS_\d{4,}$/;
+const contractCodePattern = /^CNT_\d{4,}$/;
 
 export async function listEmployees({
   requestedPage,
@@ -129,6 +137,81 @@ export async function createEmployee(actorId: string, input: unknown) {
   try {
     const id = await createEmployeeRecord(actorId, values);
     return { id };
+  } catch (error) {
+    if (error instanceof EmployeeRepositoryError) {
+      throw new EmployeeServiceError(error.message, error.status);
+    }
+    throw error;
+  }
+}
+
+export async function getEmployeeNotifications(actorId: string) {
+  await expireDueContracts(actorId);
+  const rows = await findEmployeeNotifications();
+  return rows.map((row): NotificationData => ({
+    ...row,
+    id: `${row.kind}:${row.contractId}`,
+  }));
+}
+
+export async function expireDueContracts(actorId: string) {
+  try {
+    await expireContractsForActor(actorId);
+  } catch (error) {
+    if (error instanceof EmployeeRepositoryError) {
+      throw new EmployeeServiceError(error.message, error.status);
+    }
+    throw error;
+  }
+}
+
+export async function approveProbation(actorId: string, contractId: string) {
+  if (!contractCodePattern.test(contractId)) {
+    throw new EmployeeServiceError("รหัสสัญญาไม่ถูกต้อง", 400);
+  }
+  await runContractAction(() => approveProbationRecord(actorId, contractId));
+}
+
+export async function rejectProbation(actorId: string, contractId: string) {
+  if (!contractCodePattern.test(contractId)) {
+    throw new EmployeeServiceError("รหัสสัญญาไม่ถูกต้อง", 400);
+  }
+  await runContractAction(() => rejectProbationRecord(actorId, contractId));
+}
+
+export async function cancelTerminatedContract(actorId: string, contractId: string) {
+  if (!contractCodePattern.test(contractId)) {
+    throw new EmployeeServiceError("รหัสสัญญาไม่ถูกต้อง", 400);
+  }
+  await runContractAction(() => cancelTerminatedContractRecord(actorId, contractId));
+}
+
+export async function renewContract(
+  actorId: string,
+  contractId: string,
+  input: unknown,
+) {
+  if (!contractCodePattern.test(contractId)) {
+    throw new EmployeeServiceError("รหัสสัญญาไม่ถูกต้อง", 400);
+  }
+  const endDate = getRenewalEndDate(input);
+  if (!isValidDate(endDate)) {
+    throw new EmployeeServiceError("กรุณาระบุวันสิ้นสุดสัญญาใหม่", 400);
+  }
+  if (endDate <= getCurrentBangkokDate()) {
+    throw new EmployeeServiceError("วันสิ้นสุดสัญญาใหม่ต้องเป็นวันในอนาคต", 400);
+  }
+  await runContractAction(() => renewContractRecord(actorId, contractId, endDate));
+}
+
+function getRenewalEndDate(input: unknown) {
+  if (typeof input !== "object" || input === null || !("endDate" in input)) return "";
+  return typeof input.endDate === "string" ? input.endDate.trim() : "";
+}
+
+async function runContractAction(action: () => Promise<void>) {
+  try {
+    await action();
   } catch (error) {
     if (error instanceof EmployeeRepositoryError) {
       throw new EmployeeServiceError(error.message, error.status);
@@ -253,7 +336,9 @@ export class EmployeeServiceError extends Error {
 
 function serializeEmployee(row: Awaited<ReturnType<typeof findEmployeesWithCurrentDetails>>[number]) {
   const { employee, personalInfo: personal, contract, positionHistory, position, department } = row;
-  const employmentStatus = toContractStatus(contract?.employmentStatus);
+  const employmentStatus = contract
+    ? toContractStatus(contract.employmentStatus)
+    : "พ้นสภาพ";
   const contractEndDate = contract?.endDate ?? "";
   const probationCompletionDate = contract?.probationEndDate ?? "";
   const deadline = probationCompletionDate || contractEndDate;

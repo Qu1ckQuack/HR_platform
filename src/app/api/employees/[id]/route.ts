@@ -1,4 +1,4 @@
-import { requireHrSession } from "@/lib/require-hr-session";
+import { requireHrSession } from "@/lib/role-guard";
 import {
   EmployeeServiceError,
   updateEmployee,

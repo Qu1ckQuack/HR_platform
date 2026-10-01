@@ -39,3 +39,21 @@ export function getProbationCompletionDate(startDate: string) {
   date.setUTCDate(date.getUTCDate() + PROBATION_PERIOD_DAYS);
   return date.toISOString().slice(0, 10);
 }
+
+export function formatBuddhistDate(value: string | null | undefined) {
+  if (!value) return "-";
+
+  const dateValue = value.slice(0, 10);
+  if (!DATE_INPUT_PATTERN.test(dateValue)) {
+    throw new RangeError("Date must use YYYY-MM-DD format.");
+  }
+  const date = new Date(`${dateValue}T00:00:00.000Z`);
+  if (Number.isNaN(date.valueOf()) || date.toISOString().slice(0, 10) !== dateValue) {
+    throw new RangeError("Date is not a valid calendar date.");
+  }
+
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const buddhistYear = date.getUTCFullYear() + 543;
+  return `${day}/${month}/${buddhistYear}`;
+}

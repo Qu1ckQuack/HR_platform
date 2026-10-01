@@ -14,7 +14,6 @@ import {
   faUserPlus,
   faMagnifyingGlass,
   faGear,
-  faBell,
   faExpand,
   faPen,
   faXmark,
@@ -24,11 +23,13 @@ import {
   faFloppyDisk
 } from "@fortawesome/free-solid-svg-icons";
 import type { Employee } from "@/types/employee";
-import { useEmployees } from "@/hooks/useEmployees";
+import { useEmployees } from "@/hooks/loadEmployee";
 import { InfoSection } from "@/components/ui/InfoSection";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { EmployeeNotifications } from "@/components/employees/EmployeeNotifications";
 import {
+  formatBuddhistDate,
   getCurrentBangkokDate,
   getProbationCompletionDate,
 } from "@/lib/employment-dates";
@@ -82,37 +83,30 @@ export default function EmployeePage() {
         </div>
         <div className="flex items-center gap-2 *:cursor-pointer">
           <button
-            onClick={startCreate}
             className="hidden rounded-md bg-[#102d59] px-4 py-2 text-sm font-semibold text-white sm:block"
           >
             ＋ สร้างรายการ
           </button>
           <button
-            title="Not implemented yet"
+            title="การตั้งค่า(ยังไม่เสร็จ)"
             className="min-h-10 min-w-10 rounded hover:bg-slate-100"
             aria-label="Show employee"
           >
             <FontAwesomeIcon icon={faGear} className="h-4 w-4" />
           </button>
           <button
-            title="Not implemented yet"
+            title="(ยังไม่เสร็จ)"
             className="min-h-10 min-w-10 rounded hover:bg-slate-100"
             aria-label="Show employee"
           >
             <FontAwesomeIcon icon={faExpand} className="h-4 w-4" />
           </button>
-          <button
-            title="Not implemented yet"
-            className="min-h-10 min-w-10 rounded hover:bg-slate-100"
-            aria-label="Show employee"
-          >
-            <FontAwesomeIcon icon={faBell} className="h-4 w-4" />
-          </button>
+          <EmployeeNotifications onEmployeesChanged={refreshEmployees} />
           <button
             onClick={() => router.push("/login")}
             className="min-h-10 min-w-10 rounded-full bg-slate-200 text-xs font-bold"
           >
-            AW
+            HR
           </button>
         </div>
       </header>
@@ -285,7 +279,7 @@ export default function EmployeePage() {
                         <StatusBadge status={employee.status} />
                       </td>
                       <td className="hidden p-4 md:table-cell">
-                        {employee.startDate}
+                        {formatBuddhistDate(employee.startDate)}
                       </td>
                       <td className="hidden max-w-56 p-4 text-center md:table-cell">
                         <p className="whitespace-nowrap text-xs">
@@ -295,6 +289,7 @@ export default function EmployeePage() {
                       <td className="p-3 text-right sm:p-4">
                         <div className="flex justify-end gap-2 whitespace-nowrap text-[#102d59]">
                           <button
+                            title="ดูข้อมูล"
                             onClick={() => open(employee, "view")}
                             className="min-h-10 min-w-10 rounded hover:bg-slate-100"
                             aria-label="Show employee"
@@ -302,6 +297,7 @@ export default function EmployeePage() {
                             <FontAwesomeIcon icon={faEye} className="h-4 w-4" />
                           </button>
                           <button
+                            title="แก้ไขข้อมูลพนักงาน"
                             onClick={() => open(employee, "edit")}
                             className="min-h-10 min-w-10 rounded hover:bg-slate-100"
                             aria-label="Edit employee"
@@ -312,7 +308,7 @@ export default function EmployeePage() {
                             />
                           </button>
                           <button
-                            title="Not implemented yet"
+                            title="ดูประวัติการดำรงตำแหน่ง(ยังไม่เสร็จ)"
                             className="min-h-10 min-w-10 rounded"
                             aria-label="History"
                           >
@@ -322,6 +318,7 @@ export default function EmployeePage() {
                             />
                           </button>
                           <button
+                            title="ลบข้อมูลผู้ใช้"
                             className="min-h-10 min-w-10 text-red-500 rounded hover:bg-slate-100"
                             aria-label="Delete employee"
                           >
@@ -454,8 +451,13 @@ function EmployeeSkeletonRow() {
 }
 
 function formatContractDeadline(employee: Employee) {
-  const date = employee.probationCompletionDate || employee.contractEndDate;
-  if (!date) return "-";
+  const rawDate = employee.probationCompletionDate || employee.contractEndDate;
+  if (!rawDate) return "-";
+  if (
+    employee.employmentType === "พนักงานสัญญาจ้าง" &&
+    employee.daysUntilEnd === 0
+  ) return "หมดสัญญา";
+  const date = formatBuddhistDate(rawDate);
   if (employee.probationCompletionDate) {
     if (employee.daysUntilEnd === 0) return `${date} (จบการทดลองงาน)`;
     return `${date} (ทดลองงาน เหลือ ${employee.daysUntilEnd ?? 0} วัน)`;

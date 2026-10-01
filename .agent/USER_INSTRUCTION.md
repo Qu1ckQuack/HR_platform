@@ -1,26 +1,25 @@
 # Your instructions
 
-Write project-level directions for Codex below. Keep the newest or highest
-priority instruction at the top.
+add these features if you are not certain if you should change, delete or my instruction isn't clear the code ask me first
 
 ## Current instructions
 
-1. _Trace an error why ทั้งหมด display all employees number as undefined_
+1. _แสดงวันที่เวลาด้วย พ.ศ. getFullYear() + 543_
 
-2. _วันเริ่มงาน, วันเริ่มทดลองงาน default is current time but still keep calendar feature_
+2. _HR ก็ยังต้องแก้ไขข้อมูล Contract ได้ + function อนุมัติ ผ่านทดลองงาน กดแล้วเปลี่ยน "ทดลองงาน(จบการทดลองงาน) -> ปฎิบัติงาน" , มีให้กดต่อสัญญาในกรณี  status พ้นสภาพ(จะเห็นได้ที่ notification panel)_
 
-3. _วันครบทดลองงาน = 120 day effectiveFrom startDate(start counting as soon as the user press create new employee)_
+3. _ปุ่มแจ้งเตือน แจ้งกรณีตรวจพบ พนักงานหมดสัญญา status -> พ้นสภาพ และกรณี ครบทดลองงาน_
 
 
 ## Helpful details to include
 
 1. The outcome user want and who will use it.
-- about features It shall work accourding to my instruction
+- according to my instruction
 2. Required pages, features, data, integrations, or design
  references.
 - 
 3. Constraints such as deadlines, supported devices, accessibility, or things
   that must not change.
-- UI must not be changed
+- old component must not be chage, one function one job, change code in one block another one must not break
 4. How user want work verified and what “done” means.
-- report me what is the cause of the error and it shall display total number of employees records
+- datetime calculated correctly and display in buddismYear, hr can see number of notification hear notification sound (use ms-team sound if possible), hr can approved qualification

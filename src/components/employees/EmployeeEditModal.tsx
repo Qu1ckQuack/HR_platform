@@ -56,11 +56,31 @@ export function EmployeeEditModal({
   const [options, setOptions] = useState<EmployeeFormOptions>({
     departments: [],
     positions: [],
+    employmentTypes: [],
     supervisors: [],
   });
   const [optionsError, setOptionsError] = useState("");
   const [formError, setFormError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  // Custom department and position state
+  const [isCustomDept, setIsCustomDept] = useState(false);
+  const [customDeptName, setCustomDeptName] = useState("");
+  const [isCustomPos, setIsCustomPos] = useState(false);
+  const [customPosName, setCustomPosName] = useState("");
+
+  // Confirmation dialog state for adding custom items
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    action: () => Promise<void>;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    action: async () => {},
+  });
 
   useEffect(() => {
     let isCurrent = true;
@@ -102,6 +122,108 @@ export function EmployeeEditModal({
     value: EmployeeEditForm[K],
   ) => setForm((current) => ({ ...current, [field]: value }));
 
+  const handleSaveCustomDepartment = () => {
+    const trimmed = customDeptName.trim();
+    if (!trimmed) {
+      setFormError("กรุณากรอกชื่อหน่วยงานใหม่");
+      return;
+    }
+    setFormError("");
+
+    setConfirmDialog({
+      isOpen: true,
+      title: "ยืนยันการเพิ่มหน่วยงานใหม่",
+      message: `คุณต้องการเพิ่มหน่วยงาน "${trimmed}" เข้าสู่ฐานข้อมูลใช่หรือไม่?`,
+      action: async () => {
+        try {
+          const response = await fetch("/api/employees/options", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type: "department", name: trimmed }),
+          });
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload.error ?? "ไม่สามารถสร้างหน่วยงานใหม่ได้");
+          }
+          const newDept = payload.department;
+          setOptions((prev) => ({
+            ...prev,
+            departments: [...prev.departments, newDept],
+          }));
+          setForm((current) => ({
+            ...current,
+            departmentId: newDept.id,
+            positionId: "",
+            supervisorEmployeeId: "",
+          }));
+          setIsCustomDept(false);
+          setCustomDeptName("");
+          setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        } catch (error) {
+          console.error(error);
+          setFormError(
+            error instanceof Error ? error.message : "ไม่สามารถสร้างหน่วยงานได้",
+          );
+          setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
+  };
+
+  const handleSaveCustomPosition = () => {
+    const trimmed = customPosName.trim();
+    if (!form.departmentId) {
+      setFormError("กรุณาเลือกหรือระบุหน่วยงานก่อนเพิ่มตำแหน่ง");
+      return;
+    }
+    if (!trimmed) {
+      setFormError("กรุณากรอกชื่อตำแหน่งใหม่");
+      return;
+    }
+    setFormError("");
+
+    setConfirmDialog({
+      isOpen: true,
+      title: "ยืนยันการเพิ่มตำแหน่งใหม่",
+      message: `คุณต้องการเพิ่มตำแหน่ง "${trimmed}" ในหน่วยงานที่เลือกเข้าสู่ฐานข้อมูลใช่หรือไม่?`,
+      action: async () => {
+        try {
+          const response = await fetch("/api/employees/options", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "position",
+              name: trimmed,
+              departmentId: form.departmentId,
+            }),
+          });
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload.error ?? "ไม่สามารถสร้างตำแหน่งใหม่ได้");
+          }
+          const newPos = payload.position;
+          setOptions((prev) => ({
+            ...prev,
+            positions: [...prev.positions, newPos],
+          }));
+          setForm((current) => ({
+            ...current,
+            positionId: newPos.id,
+          }));
+          setIsCustomPos(false);
+          setCustomPosName("");
+          setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        } catch (error) {
+          console.error(error);
+          setFormError(
+            error instanceof Error ? error.message : "ไม่สามารถสร้างตำแหน่งได้",
+          );
+          setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
+  };
+
   const submit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormError("");
@@ -137,7 +259,7 @@ export function EmployeeEditModal({
         className="hide-scrollbar max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-xl bg-white shadow-2xl"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <header className="sticky top-0 flex justify-between border-b bg-white p-4 sm:p-5">
+        <header className="sticky top-0 flex justify-between border-b bg-white p-4 sm:p-5 z-10">
           <div>
             <h2 className="font-bold text-slate-900 sm:text-xl">
               {employee ? "แก้ไขข้อมูลพนักงาน" : "เพิ่มพนักงาน"}
@@ -146,7 +268,11 @@ export function EmployeeEditModal({
               ช่องที่มี * จำเป็นต้องกรอก - ตรวจสอบไฟล์ซ้ำที่ Server
             </p>
           </div>
-          <button type="button" onClick={close} className="hover:text-red-500">
+          <button
+            type="button"
+            onClick={close}
+            className="hover:text-red-500 cursor-pointer hover:cursor-pointer p-1"
+          >
             <FontAwesomeIcon icon={faXmark} className="h-4 w-4" />
           </button>
         </header>
@@ -285,44 +411,162 @@ export function EmployeeEditModal({
                 ข้อมูลการจ้างงาน
               </legend>
               <div className="grid gap-4 sm:grid-cols-2">
-                <FormSelect
-                  label="หน่วยงาน"
-                  required
-                  value={form.departmentId}
-                  onChange={(value) => {
-                    setForm((current) => ({
-                      ...current,
-                      departmentId: value,
-                      positionId: "",
-                      supervisorEmployeeId: "",
-                    }));
-                  }}
-                  options={options.departments.map((department) => ({
-                    value: department.id,
-                    label: department.name,
-                  }))}
-                />
-                <FormSelect
-                  label="ตำแหน่ง"
-                  required
-                  value={form.positionId}
-                  onChange={(value) => setField("positionId", value)}
-                  options={positions.map((position) => ({
-                    value: position.id,
-                    label: position.name,
-                  }))}
-                />
+                {/* Department with dropdown OR custom add */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium text-slate-700">
+                      หน่วยงาน <span className="text-red-500">*</span>
+                    </span>
+                    {!isCustomDept ? (
+                      <button
+                        type="button"
+                        onClick={() => setIsCustomDept(true)}
+                        className="text-xs text-[#102d59] font-medium hover:underline cursor-pointer hover:cursor-pointer"
+                      >
+                        + เพิ่มหน่วยงานใหม่
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCustomDept(false);
+                          setCustomDeptName("");
+                        }}
+                        className="text-xs text-slate-500 hover:underline cursor-pointer hover:cursor-pointer"
+                      >
+                        เลือกจากรายการ
+                      </button>
+                    )}
+                  </div>
+                  {!isCustomDept ? (
+                    <select
+                      required
+                      value={form.departmentId}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setForm((current) => ({
+                          ...current,
+                          departmentId: value,
+                          positionId: "",
+                          supervisorEmployeeId: "",
+                        }));
+                      }}
+                      className="min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 font-normal outline-none focus:border-[#2867b4] cursor-pointer hover:cursor-pointer text-sm"
+                    >
+                      <option value="">เลือกหน่วยงาน</option>
+                      {options.departments.map((dept) => (
+                        <option key={dept.id} value={dept.id}>
+                          {dept.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="พิมพ์ชื่อหน่วยงานใหม่..."
+                        value={customDeptName}
+                        onChange={(e) => setCustomDeptName(e.target.value)}
+                        className="min-h-11 flex-1 rounded-md border border-slate-300 px-3 text-sm outline-none focus:border-[#2867b4]"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSaveCustomDepartment}
+                        className="min-h-11 rounded-md bg-[#102d59] px-3 text-xs font-semibold text-white cursor-pointer hover:cursor-pointer hover:bg-[#244675]"
+                      >
+                        บันทึก
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Position with dropdown OR custom add */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium text-slate-700">
+                      ตำแหน่ง <span className="text-red-500">*</span>
+                    </span>
+                    {!isCustomPos ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!form.departmentId) {
+                            setFormError(
+                              "กรุณาเลือกหรือระบุหน่วยงานก่อนเพิ่มตำแหน่ง",
+                            );
+                            return;
+                          }
+                          setFormError("");
+                          setIsCustomPos(true);
+                        }}
+                        className="text-xs text-[#102d59] font-medium hover:underline cursor-pointer hover:cursor-pointer"
+                      >
+                        + เพิ่มตำแหน่งใหม่
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCustomPos(false);
+                          setCustomPosName("");
+                        }}
+                        className="text-xs text-slate-500 hover:underline cursor-pointer hover:cursor-pointer"
+                      >
+                        เลือกจากรายการ
+                      </button>
+                    )}
+                  </div>
+                  {!isCustomPos ? (
+                    <select
+                      required
+                      value={form.positionId}
+                      onChange={(event) =>
+                        setField("positionId", event.target.value)
+                      }
+                      className="min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 font-normal outline-none focus:border-[#2867b4] cursor-pointer hover:cursor-pointer text-sm"
+                    >
+                      <option value="">เลือกตำแหน่ง</option>
+                      {positions.map((pos) => (
+                        <option key={pos.id} value={pos.id}>
+                          {pos.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="พิมพ์ชื่อตำแหน่งใหม่..."
+                        value={customPosName}
+                        onChange={(e) => setCustomPosName(e.target.value)}
+                        className="min-h-11 flex-1 rounded-md border border-slate-300 px-3 text-sm outline-none focus:border-[#2867b4]"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSaveCustomPosition}
+                        className="min-h-11 rounded-md bg-[#102d59] px-3 text-xs font-semibold text-white cursor-pointer hover:cursor-pointer hover:bg-[#244675]"
+                      >
+                        บันทึก
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <FormSelect
                   label="ประเภทการจ้างงาน"
                   required
                   value={form.employmentType}
                   onChange={(value) => setField("employmentType", value)}
-                  options={[
-                    "พนักงานประจำ",
-                    "พนักงานพาร์ทไทม์",
-                    "พนักงานสัญญาจ้าง",
-                    "ฟรีแลนซ์",
-                  ]}
+                  options={
+                    options.employmentTypes.length > 0
+                      ? options.employmentTypes
+                      : [
+                          "พนักงานประจำ",
+                          "พนักงานพาร์ทไทม์",
+                          "พนักงานสัญญาจ้าง",
+                          "ฟรีแลนซ์",
+                        ]
+                  }
                 />
                 <FormInput
                   label="วันที่เริ่มงาน"
@@ -401,25 +645,65 @@ export function EmployeeEditModal({
               </p>
             )}
           </div>
-          <footer className="sticky bottom-0 flex justify-end gap-3 border-t bg-white p-4">
+          <footer className="sticky bottom-0 flex justify-end gap-3 border-t bg-white p-4 z-10">
             <button
               type="button"
               onClick={close}
-              className="min-h-10 rounded-md border px-4 hover:bg-gray-200"
+              className="min-h-10 rounded-md border px-4 hover:bg-gray-200 cursor-pointer hover:cursor-pointer"
             >
               ยกเลิก
             </button>
             <button
               type="submit"
               disabled={isSaving}
-              className="min-h-10 rounded-md bg-[#102d59] px-4 font-semibold text-white hover:bg-[#244675] disabled:cursor-wait disabled:opacity-60"
+              className="min-h-10 rounded-md bg-[#102d59] px-4 font-semibold text-white hover:bg-[#244675] disabled:cursor-wait disabled:opacity-60 cursor-pointer hover:cursor-pointer flex items-center gap-1.5"
             >
-              <FontAwesomeIcon icon={faFloppyDisk} className="pr-1"/>
+              <FontAwesomeIcon icon={faFloppyDisk} className="pr-1" />
               {isSaving ? "กำลังบันทึก..." : "บันทึก"}
             </button>
           </footer>
         </form>
       </section>
+
+      {/* Confirmation pop-up for custom department/position addition */}
+      {confirmDialog.isOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          onMouseDown={() =>
+            setConfirmDialog((prev) => ({ ...prev, isOpen: false }))
+          }
+        >
+          <div
+            className="w-full max-w-sm rounded-xl bg-white p-5 shadow-2xl"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <h4 className="text-base font-bold text-slate-900">
+              {confirmDialog.title}
+            </h4>
+            <p className="mt-2 text-sm text-slate-600">
+              {confirmDialog.message}
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setConfirmDialog((prev) => ({ ...prev, isOpen: false }))
+                }
+                className="min-h-9 rounded-md border border-slate-300 px-3 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer hover:cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={confirmDialog.action}
+                className="min-h-9 rounded-md bg-[#102d59] px-3 text-xs font-semibold text-white hover:bg-[#244675] cursor-pointer hover:cursor-pointer"
+              >
+                ยืนยันการเพิ่ม
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

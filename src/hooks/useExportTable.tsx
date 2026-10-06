@@ -21,7 +21,7 @@ export async function exportToPDF(
   const { default: jsPDF } = await import("jspdf");
 
   const canvas = await html2canvas(element, {
-    scale: 2,
+    scale: 1,
     useCORS: true,
     logging: false,
     backgroundColor: "#ffffff",
@@ -95,7 +95,7 @@ export function ExportPdfButton({
   targetRef,
   filename = "employee-report.pdf",
   label = "ส่งออก",
-  className = "min-h-11 rounded-md border border-gray-400 px-3 text-sm cursor-pointer disabled:opacity-60",
+  className = "min-h-11 rounded-md border border-gray-400 px-3 text-sm cursor-pointer hover:cursor-pointer disabled:opacity-60",
   orientation = "landscape",
 }: ExportPdfButtonProps) {
   const { handleExport, isExporting } = useExportTable({

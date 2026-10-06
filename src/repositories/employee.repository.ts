@@ -52,45 +52,50 @@ export async function findEmployeesWithCurrentDetails() {
 }
 
 export async function findEmployeeFormOptions() {
-  const [departmentRows, positionRows, supervisorRows] = await Promise.all([
-    db
-      .select({ id: departments.id, name: departments.departmentName })
-      .from(departments)
-      .orderBy(asc(departments.departmentName)),
-    db
-      .select({
-        id: positions.id,
-        name: positions.positionName,
-        departmentId: positions.departmentId,
-      })
-      .from(positions)
-      .orderBy(asc(positions.positionName)),
-    db
-      .select({
-        id: employees.id,
-        employeeCode: employees.id,
-        prefix: employees.prefix,
-        firstName: employees.firstName,
-        lastName: employees.lastName,
-        departmentId: positionHistories.departmentId,
-      })
-      .from(employees)
-      .leftJoin(
-        employmentContracts,
-        eq(employmentContracts.employeeId, employees.id),
-      )
-      .leftJoin(
-        positionHistories,
-        and(
-          eq(positionHistories.contractId, employmentContracts.id),
-          isNull(positionHistories.effectiveTo),
-        ),
-      )
-      .where(isNull(employees.deletedAt))
-      .orderBy(asc(employees.id)),
-  ]);
+  const [departmentRows, positionRows, supervisorRows, employmentTypeRows] =
+    await Promise.all([
+      db
+        .select({ id: departments.id, name: departments.departmentName })
+        .from(departments)
+        .orderBy(asc(departments.departmentName)),
+      db
+        .select({
+          id: positions.id,
+          name: positions.positionName,
+          departmentId: positions.departmentId,
+        })
+        .from(positions)
+        .orderBy(asc(positions.positionName)),
+      db
+        .select({
+          id: employees.id,
+          employeeCode: employees.id,
+          prefix: employees.prefix,
+          firstName: employees.firstName,
+          lastName: employees.lastName,
+          departmentId: positionHistories.departmentId,
+        })
+        .from(employees)
+        .leftJoin(
+          employmentContracts,
+          eq(employmentContracts.employeeId, employees.id),
+        )
+        .leftJoin(
+          positionHistories,
+          and(
+            eq(positionHistories.contractId, employmentContracts.id),
+            isNull(positionHistories.effectiveTo),
+          ),
+        )
+        .where(isNull(employees.deletedAt))
+        .orderBy(asc(employees.id)),
+      db
+        .selectDistinct({ employmentType: employmentContracts.employmentType })
+        .from(employmentContracts)
+        .orderBy(asc(employmentContracts.employmentType)),
+    ]);
 
-  return { departmentRows, positionRows, supervisorRows };
+  return { departmentRows, positionRows, supervisorRows, employmentTypeRows };
 }
 
 export async function updateEmployeeRecord(actorId: string, id: string, values: EmployeeUpdate) {
@@ -469,4 +474,45 @@ export async function findEmployeePositionHistory(employeeId: string) {
     .leftJoin(departments, eq(departments.id, positionHistories.departmentId))
     .where(eq(positionHistories.contractId, activeContract.id))
     .orderBy(desc(positionHistories.effectiveFrom), desc(positionHistories.id));
+}
+
+
+export async function findDepartmentByName(name: string) {
+  const [existing] = await db
+    .select({ id: departments.id, name: departments.departmentName })
+    .from(departments)
+    .where(eq(departments.departmentName, name.trim()))
+    .limit(1);
+  return existing;
+}
+
+export async function createDepartmentRecord(departmentName: string) {
+  const existing = await findDepartmentByName(departmentName);
+  if (existing) return existing;
+
+  const [created] = await db
+    .insert(departments)
+    .values({ departmentName: departmentName.trim() })
+    .returning({ id: departments.id, name: departments.departmentName });
+  return created;
+}
+
+export async function findPositionByName(name: string, departmentId: string) {
+  const [existing] = await db
+    .select({ id: positions.id, name: positions.positionName, departmentId: positions.departmentId })
+    .from(positions)
+    .where(and(eq(positions.positionName, name.trim()), eq(positions.departmentId, departmentId)))
+    .limit(1);
+  return existing;
+}
+
+export async function createPositionRecord(positionName: string, departmentId: string) {
+  const existing = await findPositionByName(positionName, departmentId);
+  if (existing) return existing;
+
+  const [created] = await db
+    .insert(positions)
+    .values({ positionName: positionName.trim(), departmentId })
+    .returning({ id: positions.id, name: positions.positionName, departmentId: positions.departmentId });
+  return created;
 }

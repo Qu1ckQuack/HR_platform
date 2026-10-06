@@ -16,9 +16,17 @@ export async function GET(request: Request) {
     const requestedPage = Number.parseInt(url.searchParams.get("page") ?? "1", 10);
     const search = url.searchParams.get("search")?.trim().toLocaleLowerCase() ?? "";
     const statusFilter = url.searchParams.get("status") ?? "all";
+    const departmentFilter = url.searchParams.get("department") ?? "all";
+    const employmentTypeFilter = url.searchParams.get("employmentType") ?? "all";
     await expireDueContracts(authorization.session.user.id);
     return Response.json(
-      await listEmployees({ requestedPage, search, statusFilter }),
+      await listEmployees({
+        requestedPage,
+        search,
+        statusFilter,
+        departmentFilter,
+        employmentTypeFilter,
+      }),
     );
   } catch (error) {
     console.error("Unable to load employees from PostgreSQL:", error);

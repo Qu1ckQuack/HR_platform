@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+@layer base {
+  button:not(:disabled),
+  select:not(:disabled) {
+    @apply hover:cursor-pointer;
+  }
+}
+
 @keyframes drawer-in {
   from {
     transform: translateX(100%);

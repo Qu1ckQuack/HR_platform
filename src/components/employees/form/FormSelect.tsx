@@ -25,7 +25,7 @@ export function FormSelect({
         required={required}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-1 min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 font-normal outline-none focus:border-[#2867b4]"
+        className="mt-1 min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 font-normal outline-none focus:border-[#2867b4] cursor-pointer hover:cursor-pointer"
       >
         <option value="">{emptyLabel}</option>
         {options.map((option) => {

@@ -22,14 +22,18 @@ export function EmployeeToolbar({ onCreateEmployee }: EmployeeToolbarProps) {
           ข้อมูลพนักงานแบบ 360° เชื่อมกับเวลาทำงาน การลา เงินเดือน และผลงาน
         </p>
       </div>
-      <div className="flex gap-2 *:cursor-pointer">
-        <button className="min-h-10 rounded-md border bg-white px-3 text-sm">
+      <div className="flex gap-2">
+        <button
+          type="button"
+          className="min-h-10 rounded-md border bg-white px-3 text-sm hover:cursor-pointer"
+        >
           <FontAwesomeIcon icon={faFileImport} className="mr-1 h-4 w-4" />
           นำเข้า
         </button>
         <button
+          type="button"
           onClick={onCreateEmployee}
-          className="min-h-10 rounded-md bg-[#102d59] px-3 text-sm font-semibold text-white"
+          className="min-h-10 rounded-md bg-[#102d59] px-3 text-sm font-semibold text-white hover:cursor-pointer"
         >
           <FontAwesomeIcon icon={faUserPlus} className="mr-1 h-4 w-4" />
           เพิ่มพนักงาน

@@ -77,5 +77,6 @@ export type EmployeeListResponse = {
     totalPages: number;
     active: number;
     probation: number;
+    inactive: number;
   };
 };

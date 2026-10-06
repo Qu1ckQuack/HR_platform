@@ -11,10 +11,14 @@ export function useEmployees({
   page,
   search,
   statusFilter,
+  departmentFilter = "all",
+  employmentTypeFilter = "all",
 }: {
   page: number;
   search: string;
   statusFilter: EmployeeStatusFilter;
+  departmentFilter?: string;
+  employmentTypeFilter?: string;
 }) {
   const router = useRouter();
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -23,6 +27,7 @@ export function useEmployees({
   const [totalPages, setTotalPages] = useState(1);
   const [activeEmployees, setActiveEmployees] = useState(0);
   const [probationEmployees, setProbationEmployees] = useState(0);
+  const [inactiveEmployees, setInactiveEmployees] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [refreshToken, setRefreshToken] = useState(0);
@@ -34,10 +39,12 @@ export function useEmployees({
       setIsLoading(true);
       setLoadError("");
       try {
-        const params = new URLSearchParams({ // consfuse flag
+        const params = new URLSearchParams({
           page: String(page),
           search,
           status: statusFilter,
+          department: departmentFilter,
+          employmentType: employmentTypeFilter,
         });
         const response = await fetch(`/api/employees?${params.toString()}`, {
           credentials: "include",
@@ -60,6 +67,7 @@ export function useEmployees({
           setTotalPages(body.pagination.totalPages);
           setActiveEmployees(body.pagination.active);
           setProbationEmployees(body.pagination.probation);
+          setInactiveEmployees(body.pagination.inactive ?? 0);
         }
       } catch (error) {
         console.error("Unable to load employees:", error);
@@ -75,7 +83,7 @@ export function useEmployees({
     return () => {
       isCurrent = false;
     };
-  }, [page, search, statusFilter, refreshToken, router]);
+  }, [page, search, statusFilter, departmentFilter, employmentTypeFilter, refreshToken, router]);
 
   return {
     employees,
@@ -85,6 +93,7 @@ export function useEmployees({
     totalPages,
     activeEmployees,
     probationEmployees,
+    inactiveEmployees,
     isLoading,
     loadError,
     refreshEmployees: () => setRefreshToken((current) => current + 1),

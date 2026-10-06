@@ -30,6 +30,7 @@ export type EmployeeEditForm = {
 export type EmployeeFormOptions = {
   departments: { id: string; name: string }[];
   positions: { id: string; name: string; departmentId: string }[];
+  employmentTypes: string[];
   supervisors: {
     id: string;
     employeeCode: string;

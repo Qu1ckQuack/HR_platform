@@ -68,7 +68,7 @@ export function EmployeeHistoryModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded px-2 py-1 text-sm text-slate-500 hover:bg-slate-100"
+            className="rounded px-2 py-1 text-sm text-slate-500 hover:bg-slate-100 hover:cursor-pointer"
           >
             ปิด
           </button>

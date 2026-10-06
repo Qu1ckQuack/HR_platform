@@ -31,7 +31,7 @@ export function EmployeeNotifications({ onEmployeesChanged }: Props) {
           enableSound();
           setIsOpen((open) => !open);
         }}
-        className="relative min-h-10 min-w-10 rounded hover:bg-slate-100"
+        className="relative min-h-10 min-w-10 rounded hover:bg-slate-100 hover:cursor-pointer"
         aria-label={`การแจ้งเตือน ${notifications.length} รายการ`}
         aria-expanded={isOpen}
       >

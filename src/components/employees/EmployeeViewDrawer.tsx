@@ -40,14 +40,16 @@ export function EmployeeViewDrawer({
             </div>
             <div className="flex gap-1">
               <button
+                type="button"
                 onClick={edit}
-                className="min-h-10 min-w-10 rounded bg-white shadow"
+                className="min-h-10 min-w-10 rounded bg-white shadow hover:cursor-pointer"
               >
                 <FontAwesomeIcon icon={faPen} className="h-4 w-4" />
               </button>
               <button
+                type="button"
                 onClick={close}
-                className="min-h-10 min-w-10 rounded bg-white shadow"
+                className="min-h-10 min-w-10 rounded bg-white shadow hover:cursor-pointer"
               >
                 <FontAwesomeIcon icon={faXmark} className="h-4 w-4" />
               </button>

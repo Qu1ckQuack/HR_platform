@@ -1,7 +1,9 @@
 import {
   approveProbationRecord,
   cancelTerminatedContractRecord,
+  createDepartmentRecord,
   createEmployeeRecord,
+  createPositionRecord,
   EmployeeRepositoryError,
   expireContractsForActor,
   findEmployeeNotifications,
@@ -41,10 +43,14 @@ export async function listEmployees({
   requestedPage,
   search,
   statusFilter,
+  departmentFilter,
+  employmentTypeFilter,
 }: {
   requestedPage: number;
   search: string;
   statusFilter: string;
+  departmentFilter?: string;
+  employmentTypeFilter?: string;
 }) {
   await pruneDeletedEmployees();
   const page = Number.isFinite(requestedPage) && requestedPage > 0
@@ -74,9 +80,19 @@ export async function listEmployees({
       ].some((value) => value.toLocaleLowerCase().includes(search));
     return matchesSearch;
   });
-  const filteredEmployees = searchResults.filter(
-    (employee) => statusFilter === "all" || employee.status === statusFilter,
-  );
+  const filteredEmployees = searchResults.filter((employee) => {
+    const matchesStatus = statusFilter === "all" || employee.status === statusFilter;
+    const matchesDept =
+      !departmentFilter ||
+      departmentFilter === "all" ||
+      employee.departmentId === departmentFilter ||
+      employee.department === departmentFilter;
+    const matchesType =
+      !employmentTypeFilter ||
+      employmentTypeFilter === "all" ||
+      employee.employmentType === employmentTypeFilter;
+    return matchesStatus && matchesDept && matchesType;
+  });
   const totalRecords = filteredEmployees.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages); // confuse flag
@@ -91,12 +107,13 @@ export async function listEmployees({
       totalPages,
       active: searchResults.filter((employee) => employee.status === "Active").length,
       probation: searchResults.filter((employee) => employee.status === "Probation").length,
+      inactive: searchResults.filter((employee) => employee.status === "Inactive").length,
     },
   };
 }
 
 export async function getEmployeeFormOptions() {
-  const { departmentRows, positionRows, supervisorRows } =
+  const { departmentRows, positionRows, supervisorRows, employmentTypeRows } =
     await findEmployeeFormOptions();
   const supervisorMap = new Map<string, (typeof supervisorRows)[number]>();
 
@@ -104,9 +121,19 @@ export async function getEmployeeFormOptions() {
     if (!supervisorMap.has(row.id)) supervisorMap.set(row.id, row);
   }
 
+  const employmentTypesFromDb = employmentTypeRows //start debugging
+    .map((row) => row.employmentType)
+    .filter((value): value is ContractType =>
+      employmentTypes.has(value as ContractType),
+    );
+
   return {
     departments: departmentRows,
     positions: positionRows,
+    employmentTypes:
+      employmentTypesFromDb.length >= 0
+        ? Array.from(employmentTypes)
+        : employmentTypesFromDb,
     supervisors: Array.from(supervisorMap.values()).map((row) => ({
       id: row.id,
       employeeCode: row.employeeCode,
@@ -456,4 +483,24 @@ function toUiStatus(status: EmployeeUpdate["employmentStatus"]): "Active" | "Pro
   if (status === "ทดลองงาน") return "Probation";
   if (status === "พ้นสภาพ") return "Inactive";
   return "Active";
+}
+
+
+export async function createDepartment(name: string) {
+  const trimmed = name?.trim();
+  if (!trimmed) {
+    throw new EmployeeServiceError("กรุณากรอกชื่อหน่วยงาน", 400);
+  }
+  return createDepartmentRecord(trimmed);
+}
+
+export async function createPosition(name: string, departmentId: string) {
+  const trimmedName = name?.trim();
+  if (!trimmedName) {
+    throw new EmployeeServiceError("กรุณากรอกชื่อตำแหน่ง", 400);
+  }
+  if (!departmentId?.trim()) {
+    throw new EmployeeServiceError("กรุณาระบุหน่วยงานสำหรับตำแหน่งนี้", 400);
+  }
+  return createPositionRecord(trimmedName, departmentId.trim());
 }

@@ -25,7 +25,7 @@ export function EmployeePagination({
           aria-label="หน้าก่อนหน้า"
           disabled={page === 1 || isLoading}
           onClick={() => onPageChange(page - 1)}
-          className="rounded px-2 py-1 text-base enabled:hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded px-2 py-1 text-base hover:cursor-pointer enabled:hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
         >
           ‹
         </button>
@@ -37,7 +37,7 @@ export function EmployeePagination({
           aria-label="หน้าถัดไป"
           disabled={page >= totalPages || isLoading}
           onClick={() => onPageChange(page + 1)}
-          className="rounded px-2 py-1 text-base enabled:hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded px-2 py-1 text-base hover:cursor-pointer enabled:hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
         >
           ›
         </button>

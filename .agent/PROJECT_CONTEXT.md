@@ -20,6 +20,12 @@ my-app/
 │    │── seed-auth               # generate seed super-user account
 │    │__ seed-employees          # generate employee seeds
 │
+│
+├── scripts/                         
+│    │── ensure-database         # make sure database exists if not creat new one
+│    │── seed-auth               # generate seed super-user account
+│    │__ seed-employees          # generate employee seeds
+│
 ├── app/                         # Next.js routing + pages + HTTP endpoints
 │
 │   ├── (auth)/                  # Route group; doesn't appear in the URL
@@ -55,6 +61,8 @@ my-app/
 ├── lib/                         # Infrastructure/shared utilities
 │   ├── db.ts                    # Database connection
 │   ├── auth.ts                  # Authentication configuration/helpers
+│   ├── notification-tone.ts     # Notification sound configuration
+│   ├── require-hr-session.ts     # require-hr sessiond configuration
 │   ├── notification-tone.ts     # Notification sound configuration
 │   ├── require-hr-session.ts     # require-hr sessiond configuration
 │   └── utils.ts                 # Generic utilities

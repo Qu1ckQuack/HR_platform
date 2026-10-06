@@ -2,7 +2,9 @@
 
 - 2026-09-30: Added the HR system migration SQL for the PostgreSQL schema and aligned the Drizzle schema exports to the supplied design so the project now includes the new employee, contract, auth, and HR data model definitions.
 
+
 - 2026-10-01: Implemented protected employee creation and edit flows with atomic employee, personal-data, contract, and position-history writes; aligned Better Auth hooks and seed scripts with the HR schema. Verified with fresh TypeScript, lint, Drizzle journal checks, PostgreSQL migration execution, auth/employee seeds, and a rolled-back `create_employee` integration smoke test.
+
 
 - 2026-10-01: Fixed the undefined “ทั้งหมด” count: the service returned `pagination.totalRecords` while the hook read `pagination.total`. Aligned the response type and consumer. The existing start-date calendar now defaults to today in Bangkok; it is also the probation effective-from date, and the server derives probation completion as 120 calendar days later. Verified with strict TypeScript, ESLint, three date tests, a PostgreSQL count comparison (21 API records / 21 non-deleted rows), and a create-service smoke test that ignored a forged probation date.
 
@@ -22,3 +24,5 @@
 - 2026-10-06: Implemented PDF export function in `EmployeeSearchBar.tsx` using `react-to-pdf` (`generatePDF`). Employed dynamic import to avoid SSR issues and optimize client bundles. Configured landscape A4 formatting with small margins for optimal wide table presentation. Added export state feedback to `ExportPdfButton` while preserving the original styling. Documented plan in `.agent/USER_INSTRUCTION.md` and verified with ESLint and TypeScript.
 - 2026-10-06: Moved PDF export functionality into `src/hooks/useExportTable.tsx` as a project-wide reusable `ExportPdfButton` React component and `useExportTable` hook. Resolved duplicate variable declarations in `useExportTable.tsx`. Integrated `ExportPdfButton` cleanly into `EmployeeSearchBar.tsx`. Verified with ESLint (0 errors) and TypeScript compiler checks.
 - 2026-10-06: Switched PDF export engine in `src/hooks/useExportTable.tsx` from standard `react-to-pdf` to `html2canvas-pro` + `jspdf`. This resolves canvas parsing issues with modern CSS color formats (like `lab()`, `oklch()`, and `color(display-p3)`) used by Tailwind CSS v4. Implemented sharp high-resolution rendering with automatic multi-page pagination. Verified with ESLint (0 errors) and TypeScript compiler checks.
+
+- 2026-10-06: Resolved the in-progress merge conflicts using local versions for all conflicted paths, preserving the local deletion of the obsolete feature EmployeePage. Verified no unmerged paths remain; merge commit is still pending.

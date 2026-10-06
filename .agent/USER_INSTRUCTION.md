@@ -1,42 +1,6 @@
 # Your instructions
 
 Create mvp HR management system according to my requirement any question, can't debug told me it's on me
-*** Don't do CRUD, boilerplate, API, reuseable components work that mine
-
-## Current instructions
-
-ทำเสร็จแต่ละข้อให้บันทึก log ทันที มีคำถามให้ถามผม
-
-1. ข้อมูลที่ต้องเก็บเพิ่มเติม (sensitive data เก็บตาราง PersonalData) ? = optional, * = required
-- ศาสนา? default ไม่มีศาสนา
-- ความพิการ?
-- ประวัติอาชญากรรม? 
-- ค่าตอบแทน/เงินเดือน*
-* ถ้าเป็นไปได้อยากให้ code ส่วน migrate อ่านง่าย ชื่อไฟล์ก็ต้องอ่านแล้วสื่อความหมาย แบ่งโค้ดยังไงก็ได้ให้อ่านง่ายให้ดีให้มัน migrate ไม่เกิน 3 ครั้ง(สามารถลบ แล้ว migrate ใหม่ได้)
-
-2. สิ่งที่ต้องทำเพิ่ม
-- ตรวจสอบ logic การ soft delete ส่วนของ พนักงานหมดสัญญา ที่ไม่ต่อสัญญา
-- ตรวจสอบ logic การ soft delete ในตาราง<tr> หน้า /employees
-- เพิ่ม overlay ให้ notification box และทำให้มันไม่สามารถอยู่เลย top-nav bar ได้ในทุกกรณี
-- จัดการเรื่องสิทธิการเข้าถึงข้อมูลเข้มงวดกว่านี้ 
-- button faClockRotateLeft event -> ดูประวัติการดำรงตำแหน่งได้
-- button faTrashCan -> soft delete ผู้ใช้ 7 วันให้หลังถึงลบจริง
-- เช็คว่า RBAC ถูก enforce หรือไม่
-- ปุ่ม คอลัม เมื่อกด จะเปลี่ยนเป็นคำว่า แถว 
-
-## Helpful details to include
-
-1. The outcome user want and who will use it.
-- ผลลัพธ์ที่อยากได้คือ instructions ของผม ทำออกมาอย่างถูกต้อง แต่ละฟังก์ชั่นแยกกันทำงานอย่างชัดเจน code clean ไม่พันกัน ไม่ over-engineering
-2. Required pages, features, data, integrations, or design
- references.
-- 
-3. Constraints such as deadlines, supported devices, accessibility, or things
-  that must not change.
-- old UI mustn't be change
-4. How user want work verified and what “done” means.
-- แต่ละ features ทำงานอย่างถูกต้อง, เพิ่ม field ไม่ขาดไม่เกิน
-
 
 ## Employee Page Refactoring Plan (2026-10-05)
 
@@ -78,7 +42,7 @@ src/components/employees/
 - **Old UI must not change** — same styling, same layout, same interactions.
 - All state management stays in `EmployeePage.tsx`; children receive props only.
 - `Pill` component (status filter button) lives inside `EmployeeStatusFilter.tsx`.
-- `ExportPdfButton` lives inside `EmployeeSearchBar.tsx`.
+- `ExportPdfButton` lives inside `src/hooks/useExportTable.tsx` and is imported as a reusable component across the project.
 
 ### Migration Order (bottom-up)
 
@@ -88,3 +52,19 @@ src/components/employees/
 4. Extract composed components: `EmployeeTable` → `EmployeeSearchBar` → `EmployeeStatusFilter` → `EmployeeToolbar` → `EmployeeHeader`
 5. Extract modals/drawers: `EmployeeEditModal` → `EmployeeViewDrawer` → `EmployeeHistoryModal`
 6. Final slim-down of `EmployeePage.tsx` to orchestrator-only
+
+
+### PDF Export Implementation (`html2canvas-pro` + `jspdf`)
+
+- Location: `src/hooks/useExportTable.tsx`
+- Libraries: `html2canvas-pro` (supports modern CSS color spaces such as `lab()`, `oklch()`, `color(display-p3)`, etc.) and `jspdf`.
+- Exports:
+  - `ExportPdfButton` (React Component): reusable button component taking `targetRef` (`RefObject<HTMLElement | null>`), `filename?`, `label?`, `className?`, and `orientation?`.
+  - `useExportTable` (Custom Hook): hook providing `{ handleExport, isExporting, exportToPDF }`.
+  - `exportToPDF` (Helper function): core PDF generator using `html2canvas-pro` + `jspdf`.
+- Strategy:
+  1. Dynamically import `html2canvas-pro` and `jspdf` inside `exportToPDF` to prevent SSR browser-global evaluation and minimize initial client bundle size.
+  2. Capture element canvas using `html2canvas-pro` with `scale: 2` (sharp high-DPI rendering) and full support for Tailwind CSS v4 color formats (`lab()`, `oklch()`).
+  3. Generate multi-page or single-page PDF with `jspdf` in A4 landscape orientation with proportional scaling and margins.
+  4. `ExportPdfButton` tracks `isExporting` state, disables button during export, and displays user-friendly Thai alert on error.
+  5. In `EmployeeSearchBar.tsx`: cleanly consumed as `<ExportPdfButton targetRef={reportRef} filename="employees.pdf" />`.

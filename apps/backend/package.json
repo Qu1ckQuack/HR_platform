@@ -1,0 +1,31 @@
+{
+  "name": "@hr-platform/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc --noEmit -p tsconfig.json",
+    "start": "tsx src/server.ts",
+    "lint": "eslint src scripts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "db:generate": "drizzle-kit generate",
+    "db:ensure": "tsx scripts/ensure-database.ts",
+    "db:migrate": "drizzle-kit migrate",
+    "db:setup": "npm run db:ensure && npm run db:migrate",
+    "seed:auth": "tsx scripts/seed-auth.ts",
+    "seed:employees": "tsx scripts/seed-employees.ts"
+  },
+  "dependencies": {
+    "@hr-platform/shared": "*",
+    "better-auth": "^1.7.5",
+    "cors": "^2.8.5",
+    "dotenv": "^18.0.2",
+    "drizzle-orm": "^0.45.3",
+    "exceljs": "^4.4.0",
+    "express": "^5.1.0",
+    "otplib": "^13.5.0",
+    "pg": "^8.23.0",
+    "tsx": "^4.23.15"
+  }
+}

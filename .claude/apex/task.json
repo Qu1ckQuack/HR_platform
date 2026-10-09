@@ -1,24 +1,36 @@
-{
-  "current_task": "employee-pdf-button-color",
-  "created_at": "2026-10-02T04:34:12Z",
-  "tasks": {
-    "finish-employee-pdf-export": {
-      "subject": "Finish the employee PDF export so it exports only the employee table rows",
-      "status": "done",
-      "phase": "validation",
-      "started_at": "2026-10-02T04:34:12Z",
-      "doc_consulted": {
-        "nextjs-project-structure": true
-      }
-    },
-    "employee-pdf-button-color": {
-      "subject": "Restore the Thai export button style and fix unsupported lab color during PDF generation",
-      "status": "done",
-      "phase": "validation",
-      "started_at": "2026-10-02T04:42:04Z",
-      "doc_consulted": {
-        "nextjs-lazy-loading": true
-      }
-    }
-  }
+﻿{
+    "current_task":  "hr-platform-monorepo",
+    "created_at":  "2026-10-02T04:34:12Z",
+    "tasks":  {
+                  "finish-employee-pdf-export":  {
+                                                     "subject":  "Finish the employee PDF export so it exports only the employee table rows",
+                                                     "status":  "done",
+                                                     "phase":  "validation",
+                                                     "started_at":  "2026-10-02T04:34:12Z",
+                                                     "doc_consulted":  {
+                                                                           "nextjs-project-structure":  true
+                                                                       }
+                                                 },
+                  "employee-pdf-button-color":  {
+                                                    "subject":  "Restore the Thai export button style and fix unsupported lab color during PDF generation",
+                                                    "status":  "done",
+                                                    "phase":  "validation",
+                                                    "started_at":  "2026-10-02T04:42:04Z",
+                                                    "doc_consulted":  {
+                                                                          "nextjs-lazy-loading":  true
+                                                                      }
+                                                },
+                  "hr-platform-monorepo":  {
+                                               "subject":  "Split HR platform into a Next.js/Express monorepo; add CSV/XLSX employee import, TOTP password recovery, private/public IDs, and PII masking",
+                                               "status":  "in_progress",
+                                               "phase":  "init-branch",
+                                               "started_at":  "2026-10-08T08:50:49Z",
+                                               "doc_consulted":  {
+                                                                     "nextjs-project-structure":  true,
+                                                                     "nextjs-route-handlers":  true,
+                                                                     "better-auth-express":  true,
+                                                                     "otplib-totp":  true
+                                                                 }
+                                           }
+              }
 }

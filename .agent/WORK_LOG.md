@@ -26,3 +26,5 @@
 - 2026-10-06: Switched PDF export engine in `src/hooks/useExportTable.tsx` from standard `react-to-pdf` to `html2canvas-pro` + `jspdf`. This resolves canvas parsing issues with modern CSS color formats (like `lab()`, `oklch()`, and `color(display-p3)`) used by Tailwind CSS v4. Implemented sharp high-resolution rendering with automatic multi-page pagination. Verified with ESLint (0 errors) and TypeScript compiler checks.
 
 - 2026-10-06: Resolved the in-progress merge conflicts using local versions for all conflicted paths, preserving the local deletion of the obsolete feature EmployeePage. Verified no unmerged paths remain; merge commit is still pending.
+
+- 2026-10-06: Ran production build after merge; removed duplicate imports in the employee API route exposed by build. Next.js compilation succeeds, but type checking remains blocked by drizzle.config.ts importing defineConfig, which the installed drizzle-kit package does not export. Retried outside the sandbox; same result.

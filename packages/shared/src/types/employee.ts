@@ -1,0 +1,81 @@
+export type EmployeeStatus = "Active" | "Probation" | "Inactive";
+export type Sex = "ชาย" | "หญิง" | "อื่นๆ";
+export type ContractStatus = "ทดลองงาน" | "ปฏิบัติงาน" | "พ้นสภาพ";
+export type ContractType = "พนักงานประจำ" | "พนักงานสัญญาจ้าง" | "ฟรีแลนซ์" | "พนักงานพาร์ทไทม์";
+
+export type Employee = {
+  id: string;
+  displayId: string;
+  initials: string;
+  color: string;
+  name: string;
+  prefix: string;
+  nickname: string;
+  sex: Sex;
+  firstNameThai: string;
+  lastNameThai: string;
+  citizenId: string;
+  bankAccount: string;
+  location: string;
+  personalEmail: string;
+  religion: string;
+  disability: string;
+  criminalRecord: string;
+  salary: string;
+  taxAllowance: string;
+  businessEmail: string;
+  phone: string;
+  englishName: string;
+  department: string;
+  departmentId: string;
+  position: string;
+  positionId: string;
+  supervisorEmployeeId: string;
+  employmentType: string;
+  employmentStatus: ContractStatus;
+  startDate: string;
+  contractEndDate: string;
+  probationCompletionDate: string;
+  daysUntilEnd: number | null;
+  status: EmployeeStatus;
+};
+
+export type EmployeeUpdate = {
+  prefix: string;
+  nickname: string;
+  sex: Sex;
+  firstNameThai: string;
+  lastNameThai: string;
+  englishName: string;
+  citizenId: string;
+  bankAccount: string;
+  location: string;
+  personalEmail: string;
+  businessEmail: string;
+  phone: string;
+  religion: string;
+  disability: string;
+  criminalRecord: string;
+  salary: string;
+  departmentId: string;
+  positionId: string;
+  employmentType: ContractType;
+  employmentStatus: ContractStatus;
+  startDate: string;
+  contractEndDate: string;
+  probationCompletionDate: string;
+  supervisorEmployeeId: string;
+};
+
+export type EmployeeListResponse = {
+  employees: Employee[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalRecords: number;
+    totalPages: number;
+    active: number;
+    probation: number;
+    inactive: number;
+  };
+};

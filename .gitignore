@@ -15,10 +15,13 @@
 
 # next.js
 /.next/
+apps/frontend/.next/
 /out/
 
 # production
 /build
+apps/backend/dist/
+packages/shared/dist/
 
 # misc
 .DS_Store

@@ -3,6 +3,7 @@ import {
   boolean,
   check,
   index,
+  integer,
   inet,
   pgTable,
   text,
@@ -91,6 +92,25 @@ export const verification = pgTable(
     updatedAt: timestamp("updatedAt", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("ix_verification_ident").on(table.identifier), index("ix_verification_expires").on(table.expiresAt)],
+);
+
+export const passwordResetRecovery = pgTable(
+  "PasswordResetRecovery",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("userId").notNull().unique().references(() => user.id, { onDelete: "cascade" }),
+    otpHash: text("otpHash").notNull(),
+    otpExpiresAt: timestamp("otpExpiresAt", { withTimezone: true }).notNull(),
+    otpAttempts: integer("otpAttempts").notNull().default(0),
+    authenticatorAttempts: integer("authenticatorAttempts").notNull().default(0),
+    otpVerifiedAt: timestamp("otpVerifiedAt", { withTimezone: true }),
+    authTokenHash: text("authTokenHash"),
+    authTokenExpiresAt: timestamp("authTokenExpiresAt", { withTimezone: true }),
+    authenticatorSecret: text("authenticatorSecret"),
+    createdAt: timestamp("createdAt", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("ix_password_reset_expiry").on(table.otpExpiresAt)],
 );
 
 

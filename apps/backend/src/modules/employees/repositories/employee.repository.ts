@@ -1,4 +1,4 @@
-﻿import {
+import {
   and,
   asc,
   desc,
@@ -11,7 +11,7 @@
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
-import { db } from "../lib/db";
+import { db } from "../../../lib/db";
 import type { EmployeeUpdate } from "@hr-platform/shared/types/employee";
 import type { NotificationType } from "@hr-platform/shared/types/notification-type";
 import {
@@ -21,7 +21,7 @@ import {
   personalInfo,
   positionHistories,
   positions,
-} from "../db/business-schema";
+} from "../../../db/business-schema";
 
 const supervisorEmployees = alias(employees, "supervisorEmployees");
 
@@ -391,67 +391,81 @@ export async function findEmployeeNotifications() {
     .orderBy(asc(eventDate), asc(employees.id));
 }
 
-export async function approveProbationRecord(actorId: string, contractId: string) {
+export type EmployeeActionResult =
+  | { ok: true }
+  | { ok: false; code: string; message: string; status?: number };
+
+const actionMessages: Record<string, string> = {
+  action_not_allowed: "คุณไม่มีสิทธิ์ดำเนินการนี้",
+  employee_not_found: "ไม่พบพนักงาน หรือถูกลบไปแล้ว",
+  employee_not_terminated: "ลบพนักงานไม่ได้: ต้องพ้นสภาพแล้วเท่านั้น",
+  contract_not_expired: "ลบพนักงานไม่ได้: สัญญาจ้างยังไม่ถึงวันครบกำหนด",
+  restore_window_expired: "กู้คืนไม่ได้: รายการนี้ถูกลบเกิน 7 วันแล้ว",
+  probation_not_eligible: "ดำเนินการไม่ได้: สัญญานี้ไม่ได้อยู่ในสถานะทดลองงานแล้ว",
+  probation_not_due: "ไม่อนุมัติไม่ได้: ต้องรอให้ครบกำหนดทดลองงานก่อน",
+  contract_not_terminated: "ดำเนินการไม่ได้: ต้องเป็นสัญญาที่พ้นสภาพแล้ว",
+  renewal_end_date_invalid: "วันสิ้นสุดสัญญาใหม่ต้องเป็นวันหลังจากวันนี้",
+};
+
+async function runExpectedAction(action: () => Promise<unknown>): Promise<EmployeeActionResult> {
   try {
-    await db.execute(sql`SELECT approve_probation(${actorId}, ${await getContractPrivateId(contractId)})`);
+    const result = await action() as { rows?: Array<{ outcome?: string }> };
+    const code = result.rows?.[0]?.outcome ?? "ok";
+    return code === "ok"
+      ? { ok: true }
+      : { ok: false, code, message: actionMessages[code] ?? "ดำเนินการไม่ได้: ข้อมูลไม่ตรงตามเงื่อนไข", status: code === "employee_not_found" ? 404 : 409 };
   } catch (error) {
-    throw mapContractActionError(error);
+    if (getPostgresErrorCode(error) === "42501") {
+      return { ok: false, code: "action_not_allowed", message: actionMessages.action_not_allowed, status: 403 };
+    }
+    throw error;
   }
 }
 
-export async function renewContractRecord(
-  actorId: string,
-  contractId: string,
-  endDate: string | null,
-) {
-  try {
-    await db.execute(sql`SELECT renew_contract(${actorId}, ${await getContractPrivateId(contractId)}, ${endDate})`);
-  } catch (error) {
-    throw mapContractActionError(error);
-  }
+async function findEmployeePrivateId(publicId: string) {
+  const [employee] = await db.select({ id: employees.id }).from(employees).where(eq(employees.publicId, publicId)).limit(1);
+  return employee?.id ?? null;
 }
 
-function mapContractActionError(error: unknown) {
-  const code = getPostgresErrorCode(error);
-  if (code === "42501") return new EmployeeRepositoryError("คุณไม่มีสิทธิ์ดำเนินการ", 403);
-  if (code === "P0001") return new EmployeeRepositoryError("สถานะสัญญาไม่รองรับการดำเนินการนี้", 409);
-  return error instanceof Error ? error : new Error("Contract action failed");
+async function findContractPrivateId(publicId: string) {
+  const [contract] = await db.select({ id: employmentContracts.id }).from(employmentContracts).where(eq(employmentContracts.publicId, publicId)).limit(1);
+  return contract?.id ?? null;
 }
 
-export async function rejectProbationRecord(actorId: string, contractId: string) {
-  try {
-    await db.execute(sql`SELECT reject_probation(${actorId}, ${await getContractPrivateId(contractId)})`);
-  } catch (error) {
-    throw mapContractActionError(error);
-  }
+export async function approveProbationRecord(actorId: string, contractId: string): Promise<EmployeeActionResult> {
+  const privateId = await findContractPrivateId(contractId);
+  if (!privateId) return { ok: false, code: "contract_not_found", message: "ไม่พบสัญญาจ้างที่เลือก", status: 404 };
+  return runExpectedAction(() => db.execute(sql`SELECT approve_probation(${actorId}, ${privateId}) AS outcome`));
 }
 
-export async function cancelTerminatedContractRecord(actorId: string, contractId: string) {
-  try {
-    await db.execute(sql`SELECT cancel_terminated_contract(${actorId}, ${await getContractPrivateId(contractId)})`);
-  } catch (error) {
-    throw mapContractActionError(error);
-  }
+export async function renewContractRecord(actorId: string, contractId: string, endDate: string | null): Promise<EmployeeActionResult> {
+  const privateId = await findContractPrivateId(contractId);
+  if (!privateId) return { ok: false, code: "contract_not_found", message: "ไม่พบสัญญาจ้างที่เลือก", status: 404 };
+  return runExpectedAction(() => db.execute(sql`SELECT renew_contract(${actorId}, ${privateId}, ${endDate}) AS outcome`));
 }
 
-export async function softDeleteEmployeeRecord(actorId: string, employeeId: string) {
-  try {
-    await db.execute(sql`SELECT soft_delete_employee(${actorId}, ${await getEmployeePrivateId(employeeId)})`);
-  } catch (error) {
-    const code = getPostgresErrorCode(error);
-    if (code === "42501") throw new EmployeeRepositoryError("คุณไม่มีสิทธิ์ดำเนินการ", 403);
-    throw error instanceof Error ? error : new Error("soft delete failed");
-  }
+export async function rejectProbationRecord(actorId: string, contractId: string): Promise<EmployeeActionResult> {
+  const privateId = await findContractPrivateId(contractId);
+  if (!privateId) return { ok: false, code: "contract_not_found", message: "ไม่พบสัญญาจ้างที่เลือก", status: 404 };
+  return runExpectedAction(() => db.execute(sql`SELECT reject_probation(${actorId}, ${privateId}) AS outcome`));
 }
 
-export async function restoreEmployeeRecord(actorId: string, employeeId: string) {
-  try {
-    await db.execute(sql`SELECT restore_employee(${actorId}, ${await getEmployeePrivateId(employeeId)})`);
-  } catch (error) {
-    const code = getPostgresErrorCode(error);
-    if (code === "42501") throw new EmployeeRepositoryError("คุณไม่มีสิทธิ์ดำเนินการ", 403);
-    throw error instanceof Error ? error : new Error("restore employee failed");
-  }
+export async function cancelTerminatedContractRecord(actorId: string, contractId: string): Promise<EmployeeActionResult> {
+  const privateId = await findContractPrivateId(contractId);
+  if (!privateId) return { ok: false, code: "contract_not_found", message: "ไม่พบสัญญาจ้างที่เลือก", status: 404 };
+  return runExpectedAction(() => db.execute(sql`SELECT cancel_terminated_contract(${actorId}, ${privateId}) AS outcome`));
+}
+
+export async function softDeleteEmployeeRecord(actorId: string, publicEmployeeId: string): Promise<EmployeeActionResult> {
+  const privateId = await findEmployeePrivateId(publicEmployeeId);
+  if (!privateId) return { ok: false, code: "employee_not_found", message: actionMessages.employee_not_found };
+  return runExpectedAction(() => db.execute(sql`SELECT soft_delete_employee(${actorId}, ${privateId}) AS outcome`));
+}
+
+export async function restoreEmployeeRecord(actorId: string, employeeId: string): Promise<EmployeeActionResult> {
+  const privateId = await findEmployeePrivateId(employeeId);
+  if (!privateId) return { ok: false, code: "employee_not_found", message: actionMessages.employee_not_found };
+  return runExpectedAction(() => db.execute(sql`SELECT restore_employee(${actorId}, ${privateId}) AS outcome`));
 }
 
 export async function pruneDeletedEmployees() {
@@ -535,14 +549,21 @@ export async function createPositionRecord(positionName: string, departmentId: s
 
 export async function findEmployeeSensitiveData(employeeId: string) {
   const [row] = await db
-    .select({ nationalId: personalInfo.nationalId, bankAccount: personalInfo.bankAccount })
+    .select({ nationalId: personalInfo.nationalId, bankAccount: personalInfo.bankAccount, phone: personalInfo.phone })
     .from(employees)
     .leftJoin(personalInfo, eq(personalInfo.employeeId, employees.id))
     .where(and(eq(employees.publicId, employeeId), isNull(employees.deletedAt)))
     .limit(1);
   return row
-    ? { nationalId: row.nationalId ?? "", bankAccount: row.bankAccount ?? "" }
+    ? { nationalId: row.nationalId ?? "", bankAccount: row.bankAccount ?? "", phone: row.phone ?? "" }
     : null;
+}
+
+export async function findDeletedEmployees() {
+  return db.select({ id: employees.publicId, name: sql<string>`concat_ws(' ', ${employees.prefix}, ${employees.firstName}, ${employees.lastName})`, deletedAt: employees.deletedAt })
+    .from(employees)
+    .where(and(isNotNull(employees.deletedAt), sql`${employees.deletedAt} > now() - interval '7 days'`))
+    .orderBy(desc(employees.deletedAt));
 }
 
 async function getEmployeePrivateId(publicId: string) {
@@ -550,10 +571,3 @@ async function getEmployeePrivateId(publicId: string) {
   if (!employee) throw new EmployeeRepositoryError("ไม่พบข้อมูลพนักงาน", 404);
   return employee.id;
 }
-
-async function getContractPrivateId(publicId: string) {
-  const [contract] = await db.select({ id: employmentContracts.id }).from(employmentContracts).where(eq(employmentContracts.publicId, publicId)).limit(1);
-  if (!contract) throw new EmployeeRepositoryError("ไม่พบสัญญาจ้าง", 404);
-  return contract.id;
-}
-

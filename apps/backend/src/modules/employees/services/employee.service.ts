@@ -1,4 +1,4 @@
-﻿import {
+import {
   approveProbationRecord,
   cancelTerminatedContractRecord,
   createDepartmentRecord,
@@ -8,6 +8,7 @@
   expireContractsForActor,
   findEmployeeNotifications,
   findEmployeeSensitiveData,
+  findDeletedEmployees,
   findEmployeeFormOptions,
   findEmployeePositionHistory,
   findEmployeesWithCurrentDetails,
@@ -24,6 +25,7 @@ import {
 } from "@hr-platform/shared/lib/employment-dates";
 import type { ContractType, EmployeeUpdate } from "@hr-platform/shared/types/employee";
 import type { NotificationData } from "@hr-platform/shared/types/notification-type";
+import { isThaiName } from "@hr-platform/shared/lib/thai-name";
 
 const PAGE_SIZE = 10;
 const prefixes = new Set(["นาย", "นางสาว", "นาง"]);
@@ -71,16 +73,11 @@ export async function listEmployees({
   const searchResults = Array.from(employeeMap.values()).filter((employee) => {
     const matchesSearch =
       !search ||
-      [
-        employee.id,
-        employee.name,
-        employee.firstNameThai,
-        employee.lastNameThai,
-        employee.businessEmail,
-        employee.department,
-        employee.position,
-        employee.employmentType,
-      ].some((value) => value.toLocaleLowerCase().includes(search));
+      Object.values(employee).some(
+        (value) =>
+          (typeof value === "string" || typeof value === "number") &&
+          String(value).toLocaleLowerCase().includes(search),
+      );
     return matchesSearch;
   });
   const filteredEmployees = searchResults.filter((employee) => {
@@ -123,6 +120,11 @@ export async function getEmployeeSensitiveData(employeeId: string) {
     throw new EmployeeServiceError("Invalid employee code", 400);
   }
   return findEmployeeSensitiveData(employeeId);
+}
+
+export async function listDeletedEmployees() {
+  await pruneDeletedEmployees();
+  return findDeletedEmployees();
 }
 
 export async function getEmployeeFormOptions() {
@@ -168,6 +170,7 @@ export async function updateEmployee(actorId: string, id: string, input: unknown
     ...body,
     citizenId: String(body.citizenId ?? "").trim() || privateValues.nationalId,
     bankAccount: String(body.bankAccount ?? "").trim() || privateValues.bankAccount,
+    phone: String(body.phone ?? "").trim() || privateValues.phone || "",
   });
   if (values.supervisorEmployeeId === id) {
     throw new EmployeeServiceError("ไม่สามารถตั้งพนักงานเป็นผู้บังคับบัญชาของตนเองได้", 400);
@@ -218,72 +221,41 @@ export async function expireDueContracts(actorId: string) {
 }
 
 export async function approveProbation(actorId: string, contractId: string) {
-  if (!contractCodePattern.test(contractId)) {
-    throw new EmployeeServiceError("รหัสสัญญาไม่ถูกต้อง", 400);
-  }
-  await runContractAction(() => approveProbationRecord(actorId, contractId));
+  if (!contractCodePattern.test(contractId)) return invalidAction("รหัสสัญญาไม่ถูกต้อง");
+  return approveProbationRecord(actorId, contractId);
 }
 
 export async function rejectProbation(actorId: string, contractId: string) {
-  if (!contractCodePattern.test(contractId)) {
-    throw new EmployeeServiceError("รหัสสัญญาไม่ถูกต้อง", 400);
-  }
-  await runContractAction(() => rejectProbationRecord(actorId, contractId));
+  if (!contractCodePattern.test(contractId)) return invalidAction("รหัสสัญญาไม่ถูกต้อง");
+  return rejectProbationRecord(actorId, contractId);
 }
 
 export async function cancelTerminatedContract(actorId: string, contractId: string) {
-  if (!contractCodePattern.test(contractId)) {
-    throw new EmployeeServiceError("รหัสสัญญาไม่ถูกต้อง", 400);
-  }
-  await runContractAction(() => cancelTerminatedContractRecord(actorId, contractId));
+  if (!contractCodePattern.test(contractId)) return invalidAction("รหัสสัญญาไม่ถูกต้อง");
+  return cancelTerminatedContractRecord(actorId, contractId);
 }
 
-export async function renewContract(
-  actorId: string,
-  contractId: string,
-  input: unknown,
-) {
-  if (!contractCodePattern.test(contractId)) {
-    throw new EmployeeServiceError("รหัสสัญญาไม่ถูกต้อง", 400);
-  }
+export async function renewContract(actorId: string, contractId: string, input: unknown) {
+  if (!contractCodePattern.test(contractId)) return invalidAction("รหัสสัญญาไม่ถูกต้อง");
   const endDate = getRenewalEndDate(input);
-  if (!isValidDate(endDate)) {
-    throw new EmployeeServiceError("กรุณาระบุวันสิ้นสุดสัญญาใหม่", 400);
-  }
-  if (endDate <= getCurrentBangkokDate()) {
-    throw new EmployeeServiceError("วันสิ้นสุดสัญญาใหม่ต้องเป็นวันในอนาคต", 400);
-  }
-  await runContractAction(() => renewContractRecord(actorId, contractId, endDate));
+  if (!isValidDate(endDate)) return invalidAction("กรุณาระบุวันสิ้นสุดสัญญาใหม่ให้ถูกต้อง");
+  if (endDate <= getCurrentBangkokDate()) return invalidAction("วันสิ้นสุดสัญญาใหม่ต้องเป็นวันหลังจากวันนี้");
+  return renewContractRecord(actorId, contractId, endDate);
 }
 
 export async function softDeleteEmployee(actorId: string, employeeId: string) {
-  if (!employeeCodePattern.test(employeeId)) {
-    throw new EmployeeServiceError("รหัสพนักงานไม่ถูกต้อง", 400);
-  }
-  try {
-    await softDeleteEmployeeRecord(actorId, employeeId);
-  } catch (error) {
-    if (error instanceof EmployeeRepositoryError) {
-      throw new EmployeeServiceError(error.message, error.status);
-    }
-    throw error;
-  }
+  if (!employeeCodePattern.test(employeeId)) return invalidAction("รหัสพนักงานไม่ถูกต้อง");
+  return softDeleteEmployeeRecord(actorId, employeeId);
 }
 
 export async function restoreEmployee(actorId: string, employeeId: string) {
-  if (!employeeCodePattern.test(employeeId)) {
-    throw new EmployeeServiceError("รหัสพนักงานไม่ถูกต้อง", 400);
-  }
-  try {
-    await restoreEmployeeRecord(actorId, employeeId);
-  } catch (error) {
-    if (error instanceof EmployeeRepositoryError) {
-      throw new EmployeeServiceError(error.message, error.status);
-    }
-    throw error;
-  }
+  if (!employeeCodePattern.test(employeeId)) return invalidAction("รหัสพนักงานไม่ถูกต้อง");
+  return restoreEmployeeRecord(actorId, employeeId);
 }
 
+function invalidAction(message: string) {
+  return { ok: false as const, code: "invalid_input", message, status: 400 };
+}
 export async function getEmployeePositionHistory(actorId: string, employeeId: string) {
   if (!employeeCodePattern.test(employeeId)) {
     throw new EmployeeServiceError("รหัสพนักงานไม่ถูกต้อง", 400);
@@ -302,17 +274,6 @@ export async function getEmployeePositionHistory(actorId: string, employeeId: st
 function getRenewalEndDate(input: unknown) {
   if (typeof input !== "object" || input === null || !("endDate" in input)) return "";
   return typeof input.endDate === "string" ? input.endDate.trim() : "";
-}
-
-async function runContractAction(action: () => Promise<void>) {
-  try {
-    await action();
-  } catch (error) {
-    if (error instanceof EmployeeRepositoryError) {
-      throw new EmployeeServiceError(error.message, error.status);
-    }
-    throw error;
-  }
 }
 
 function prepareEmployeeInput(input: unknown): EmployeeUpdate {
@@ -367,7 +328,9 @@ function normalizeEmployeeInput(input: unknown): EmployeeUpdate {
 function validateEmployeeInput(values: EmployeeUpdate) {
   if (!prefixes.has(values.prefix)) return "กรุณาเลือกคำนำหน้า";
   if (!values.firstNameThai) return "กรุณากรอกชื่อ (ไทย)";
+  if (!isThaiName(values.firstNameThai)) return "ชื่อ (ไทย) ต้องใช้อักษรไทยและเว้นวรรคเท่านั้น";
   if (!values.lastNameThai) return "กรุณากรอกนามสกุล (ไทย)";
+  if (!isThaiName(values.lastNameThai)) return "นามสกุล (ไทย) ต้องใช้อักษรไทยและเว้นวรรคเท่านั้น";
   if (!/^\d{13}$/.test(values.citizenId)) {
     return "เลขบัตรประชาชนต้องมี 13 หลักในรูปแบบ x-xxxx-xxxxx-xx-x";
   }
@@ -395,6 +358,7 @@ function validateEmployeeInput(values: EmployeeUpdate) {
     return "ผู้บังคับบัญชาไม่ถูกต้อง";
   }
   if (!values.bankAccount) return "กรุณากรอกบัญชีธนาคาร";
+  if (!/^\d{10}$/.test(values.bankAccount)) return "เลขบัญชีธนาคารต้องเป็นตัวเลข 10 หลัก";
   if (!values.location) return "กรุณากรอกที่อยู่";
   if (!isEmail(values.personalEmail)) return "กรุณากรอกอีเมลส่วนตัวให้ถูกต้อง";
   if (!values.salary) return "กรุณากรอกค่าตอบแทน/เงินเดือน";
@@ -470,7 +434,7 @@ function serializeEmployee(row: Awaited<ReturnType<typeof findEmployeesWithCurre
     salary: personal?.salary ?? "",
     taxAllowance: personal?.taxAllowance ?? "",
     businessEmail: employee.companyEmail,
-    phone: personal?.phone ?? "",
+    phone: maskValue(personal?.phone ?? "", 4),
     department: department?.departmentName ?? "ยังไม่ระบุ",
     departmentId: positionHistory?.departmentId ?? "",
     position: position?.positionName ?? "ยังไม่ระบุ",
@@ -489,7 +453,7 @@ function serializeEmployee(row: Awaited<ReturnType<typeof findEmployeesWithCurre
 function maskValue(value: string, visibleDigits: number) {
   if (!value) return "";
   const visible = value.slice(-visibleDigits);
-  return `${"�".repeat(Math.max(4, value.length - visibleDigits))}${visible}`;
+  return `${"x".repeat(Math.max(4, value.length - visibleDigits))}${visible}`;
 }
 
 function daysUntil(dateValue: string) {

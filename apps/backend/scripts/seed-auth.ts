@@ -10,9 +10,14 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-const email = process.env.SEED_ADMIN_EMAIL ?? "admin@example.com";
-const password = process.env.SEED_ADMIN_PASSWORD ?? "ChangeMe123!";
+const email = process.env.SEED_ADMIN_EMAIL ?? "example@gmail.com";
+const password = process.env.SEED_ADMIN_PASSWORD ?? "Password123!";
 const name = process.env.SEED_ADMIN_NAME ?? "HR Administrator";
+const role = process.env.SEED_ADMIN_ROLE ?? "super_admin";
+
+if (role !== "super_admin" && role !== "hr") {
+  throw new Error("SEED_ADMIN_ROLE must be either super_admin or hr.");
+}
 
 async function main() {
   const { eq } = await import("drizzle-orm");
@@ -36,7 +41,7 @@ async function main() {
 
   const [updatedUser] = await db
     .update(user)
-    .set({ role: "super_admin", emailVerified: true, updatedAt: new Date() })
+    .set({ role, emailVerified: true, updatedAt: new Date() })
     .where(eq(user.email, email))
     .returning({ id: user.id });
 

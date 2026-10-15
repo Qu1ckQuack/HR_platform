@@ -35,6 +35,12 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  rateLimit: {
+    enabled: true,
+    customRules: {
+      "/sign-in/email": { window: 15 * 60, max: 5 },
+    },
+  },
   trustedOrigins: [
     process.env.FRONTEND_URL ?? "http://localhost:3000",
     process.env.BETTER_AUTH_URL ?? "http://localhost:4000",

@@ -43,6 +43,34 @@
       "when": 1791453600000,
       "tag": "0006_private_uuid_public_ids",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791540000000,
+      "tag": "0007_bank_account_format",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791543600000,
+      "tag": "0008_expected_action_results",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791547200000,
+      "tag": "0009_lock_employee_contract_before_soft_delete",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791936000000,
+      "tag": "0010_password_reset_recovery",
+      "breakpoints": true
     }
   ]
 }

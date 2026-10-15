@@ -150,6 +150,7 @@ export const personalInfo = pgTable(
     unique("PersonalData_employeeId_key").on(table.employeeId),
     unique("PersonalData_citizenId_key").on(table.nationalId),
     check("PersonalData_citizenId_check", sql`${table.nationalId} ~ '^[0-9]{13}$'`),
+    check("PersonalData_bankAccount_check", sql`${table.bankAccount} ~ '^[0-9]{10}$'`),
     check("PersonalData_taxDeductions_check", sql`${table.taxAllowance} >= 0`),
     check("PersonalData_salary_check", sql`${table.salary} IS NULL OR ${table.salary} >= 0`),
   ],

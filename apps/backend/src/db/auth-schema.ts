@@ -26,9 +26,6 @@ export const user = pgTable(
     emailVerified: boolean("emailVerified").notNull().default(false),
     image: text("image"),
     role: text("role").notNull().default("user"),
-    totpSecret: text("totpSecret"),
-    totpEnabledAt: timestamp("totpEnabledAt", { withTimezone: true }),
-    totpLastStep: bigint("totpLastStep", { mode: "number" }),
     createdAt: timestamp("createdAt", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updatedAt", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -102,15 +99,19 @@ export const passwordResetRecovery = pgTable(
     otpHash: text("otpHash").notNull(),
     otpExpiresAt: timestamp("otpExpiresAt", { withTimezone: true }).notNull(),
     otpAttempts: integer("otpAttempts").notNull().default(0),
-    authenticatorAttempts: integer("authenticatorAttempts").notNull().default(0),
     otpVerifiedAt: timestamp("otpVerifiedAt", { withTimezone: true }),
     authTokenHash: text("authTokenHash"),
     authTokenExpiresAt: timestamp("authTokenExpiresAt", { withTimezone: true }),
-    authenticatorSecret: text("authenticatorSecret"),
     createdAt: timestamp("createdAt", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updatedAt", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("ix_password_reset_expiry").on(table.otpExpiresAt)],
 );
+
+export const authRateLimits = pgTable("AuthRateLimits", {
+  key: text("key").primaryKey(),
+  count: integer("count").notNull(),
+  lastRequest: bigint("lastRequest", { mode: "number" }).notNull(),
+});
 
 

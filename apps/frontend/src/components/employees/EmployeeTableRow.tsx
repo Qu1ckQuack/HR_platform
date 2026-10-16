@@ -70,9 +70,8 @@ export function EmployeeTableRow({
       )}
       {visibleColumns.deadline && (
         <td className="hidden max-w-56 p-4 text-center md:table-cell">
-          <p className="whitespace-nowrap text-xs">
-            {formatContractDeadline(employee)}
-          </p>
+          {!(employee.employmentType === "พนักงานประจำ" && employee.employmentStatus === "ปฏิบัติงาน") &&
+            <p className="whitespace-nowrap text-xs">{formatContractDeadline(employee)}</p>}
         </td>
       )}
       {visibleColumns.actions && (

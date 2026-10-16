@@ -23,6 +23,8 @@ import { EmployeeViewDrawer } from "@/components/employees/EmployeeViewDrawer";
 import { EmployeeHistoryModal } from "@/components/employees/EmployeeHistoryModal";
 import { EmployeeDeleteModal } from "@/components/employees/EmployeeDeleteModal";
 import type { EmployeeFormOptions } from "@/components/employees/form/types";
+import type { EmployeeEditForm } from "@/components/employees/form/types";
+import type { ImportDraft } from "@/components/employees/ImportEmployeesButton";
 
 export default function EmployeePage() {
   const router = useRouter();
@@ -63,6 +65,8 @@ export default function EmployeePage() {
   });
 
   const [modal, setModal] = useState(false);
+  const [draftValues, setDraftValues] = useState<Partial<EmployeeEditForm>>();
+  const [onImportDraftSaved, setOnImportDraftSaved] = useState<(() => void) | undefined>();
   const [drawer, setDrawer] = useState(false);
   const [historyEmployeeId, setHistoryEmployeeId] = useState<string | null>(
     null,
@@ -95,13 +99,24 @@ export default function EmployeePage() {
 
   const open = (employee: Employee, mode: "edit" | "view") => {
     setSelected(employee);
-    if (mode === "edit") setModal(true);
+    if (mode === "edit") {
+      setDraftValues(undefined);
+      setOnImportDraftSaved(undefined);
+      setModal(true);
+    }
     else setDrawer(true);
   };
 
-  const startCreate = () => {
+  const startCreate = (values?: Record<string, string>) => {
     setSelected(null);
+    setDraftValues(values as Partial<EmployeeEditForm> | undefined);
+    setOnImportDraftSaved(undefined);
     setModal(true);
+  };
+
+  const editImportedDraft = (draft: ImportDraft, onSaved: () => void) => {
+    startCreate(draft.values);
+    setOnImportDraftSaved(() => onSaved);
   };
 
   const confirmSoftDelete = async () => {
@@ -143,10 +158,9 @@ export default function EmployeePage() {
       <EmployeeHeader
         onRefreshEmployees={refreshEmployees}
         onNavigateToLogin={() => router.push("/login")}
-        onNavigateToSecurity={() => router.push("/account/security")}
       />
       <section className="p-3 sm:p-6">
-        <EmployeeToolbar onCreateEmployee={startCreate} onImported={refreshEmployees} />
+        <EmployeeToolbar onCreateEmployee={() => startCreate()} onImported={refreshEmployees} onEditDraft={editImportedDraft} />
         <EmployeeStatusFilter
           statusFilter={statusFilter}
           onFilterChange={(status) => {
@@ -222,9 +236,17 @@ export default function EmployeePage() {
       {modal && (
         <EmployeeEditModal
           employee={selected}
-          close={() => setModal(false)}
+          initialValues={draftValues}
+          close={() => {
+            setModal(false);
+            setDraftValues(undefined);
+            setOnImportDraftSaved(undefined);
+          }}
           onSaved={() => {
             setModal(false);
+            setDraftValues(undefined);
+            onImportDraftSaved?.();
+            setOnImportDraftSaved(undefined);
             refreshEmployees();
           }}
         />

@@ -104,7 +104,7 @@ export function EmployeeViewDrawer({
               ["เลขบัตรประชาชน", employee.citizenId],
               ["อีเมล", employee.businessEmail],
               ["โทรศัพท์", employee.phone],
-              ["ผู้ติดต่อฉุกเฉิน", ""],
+              ["ผู้ติดต่อฉุกเฉิน", employee.emergencyContactName],
             ]}
           />
           <button

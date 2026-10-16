@@ -18,15 +18,22 @@ function responseStub() {
   };
 }
 
-test("only confirms OTP request when the requester reports successful delivery", async () => {
-  const expectedStatuses = { not_found: 404, rate_limited: 429, delivery_failed: 503, sent: 202 } as const;
+test("keeps OTP request responses generic to avoid revealing account existence", async () => {
+  const expectedStatuses = { not_found: 202, rate_limited: 429, delivery_failed: 202, sent: 202 } as const;
+  let genericMessage: string | undefined;
   for (const [state, expectedStatus] of Object.entries(expectedStatuses) as [keyof typeof expectedStatuses, number][]) {
     const handler = createRequestOtpHandler(async () => state, () => "request-test");
     const response = responseStub();
     await handler({ body: { contact: "hr@example.test" }, ip: "192.0.2.10" } as Request, response as unknown as Response, () => {});
     assert.equal(response.statusCode, expectedStatus, `${state} should not be reported as successful`);
     assert.equal((response.body as { requestId: string }).requestId, "request-test");
-    if (state !== "sent") assert.ok((response.body as { error?: string }).error);
+    if (expectedStatus === 202) {
+      const message = (response.body as { message: string }).message;
+      genericMessage ??= message;
+      assert.equal(message, genericMessage);
+    } else {
+      assert.ok((response.body as { error?: string }).error);
+    }
   }
 });
 

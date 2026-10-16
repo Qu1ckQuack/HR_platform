@@ -3,10 +3,9 @@
 import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faDownload } from "@fortawesome/free-solid-svg-icons";
-import type { Employee } from "@hr-platform/shared/types/employee";
-import { formatContractDeadline } from "./utils/format-contract";
 import type { TableColumnKey } from "./EmployeeSearchBar";
 import { fetchFilteredEmployees, type EmployeeFilters } from "./fetchFilteredEmployees";
+import { getEmployeeXlsxColumns, getEmployeeXlsxRow } from "./employee-xlsx-columns";
 
 type Props = {
   columns: Array<{ key: TableColumnKey; header: string }>;
@@ -23,20 +22,10 @@ export function ExportEmployeesXlsxButton({ columns, filters }: Props) {
       const employees = await fetchFilteredEmployees(filters);
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet("Employees");
-      const exportColumns = columns.filter(({ key }) => key !== "actions");
+      const exportColumns = getEmployeeXlsxColumns(columns.filter(({ key }) => key !== "actions"));
 
-      worksheet.columns = exportColumns.map(({ key, header }) => ({
-        header,
-        key,
-        width: key === "employee" || key === "department" ? 32 : 22,
-      }));
-      worksheet.addRows(
-        employees.map((employee) =>
-          Object.fromEntries(
-            exportColumns.map(({ key }) => [key, getExportValue(employee, key)]),
-          ),
-        ),
-      );
+      worksheet.columns = exportColumns;
+      worksheet.addRows(employees.map(getEmployeeXlsxRow));
       worksheet.getRow(1).font = { bold: true };
       worksheet.views = [{ state: "frozen", ySplit: 1 }];
 
@@ -69,16 +58,4 @@ export function ExportEmployeesXlsxButton({ columns, filters }: Props) {
       ส่งออก
     </button>
   );
-}
-
-function getExportValue(employee: Employee, key: TableColumnKey) {
-  switch (key) {
-    case "id": return employee.id;
-    case "employee": return [employee.name, employee.englishName].filter(Boolean).join(" / ");
-    case "department": return [employee.department, employee.position].filter(Boolean).join(" / ");
-    case "status": return employee.employmentStatus;
-    case "startDate": return employee.startDate;
-    case "deadline": return formatContractDeadline(employee);
-    case "actions": return "";
-  }
 }

@@ -25,6 +25,7 @@ export type Employee = {
   taxAllowance: string;
   businessEmail: string;
   phone: string;
+  emergencyContactName: string;
   englishName: string;
   department: string;
   departmentId: string;
@@ -53,6 +54,7 @@ export type EmployeeUpdate = {
   personalEmail: string;
   businessEmail: string;
   phone: string;
+  emergencyContactName: string;
   religion: string;
   disability: string;
   criminalRecord: string;

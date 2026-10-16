@@ -2,19 +2,10 @@ import { config } from "dotenv";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import path from "node:path";
 import { departmentFixtures, employeeFixture, positionFixtures } from "./employee-fixtures";
+import { assertConfirmedLocalDatabase, clearLocalDatabase } from "./local-database-maintenance";
 
 config({ path: path.resolve(process.cwd(), "../../.env.local") });
 config({ path: path.resolve(process.cwd(), "../../.env") });
-
-async function clearLocalDatabase(db: typeof import("../src/db").db) {
-  const url = new URL(process.env.DATABASE_URL ?? "");
-  const { rows } = await db.$client.query<{ database: string }>("SELECT current_database() AS database");
-  if (!new Set(["localhost", "127.0.0.1", "::1"]).has(url.hostname) || rows[0]?.database !== "hr_platform") {
-    throw new Error("Refusing reset: target must be the local hr_platform database.");
-  }
-  await db.$client.query(`TRUNCATE TABLE "Verification", "Sessions", "Account", "User", "PositioningHistory", "PersonalData", "Contract", "Employees", "Position", "Department" RESTART IDENTITY CASCADE`);
-  await db.$client.query("ALTER SEQUENCE department_code_seq RESTART WITH 1; ALTER SEQUENCE position_code_seq RESTART WITH 1; ALTER SEQUENCE contract_code_seq RESTART WITH 1; ALTER SEQUENCE poshist_code_seq RESTART WITH 1; ALTER SEQUENCE personal_code_seq RESTART WITH 1; ALTER SEQUENCE employee_code_seq RESTART WITH 1");
-}
 
 async function seedEmployees(db: typeof import("../src/db").db, adminEmail: string) {
   const schema = await import("../src/db/business-schema");
@@ -41,14 +32,16 @@ async function seedEmployees(db: typeof import("../src/db").db, adminEmail: stri
 
 async function main() {
   if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required.");
-  if (!process.argv.includes("--reset")) throw new Error("Pass --reset to confirm the destructive local database reset.");
+  const adminEmail = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
+  if (!adminEmail) throw new Error("SEED_ADMIN_EMAIL is required in the environment before resetting demo data.");
   const { db } = await import("../src/db");
   try {
-    await clearLocalDatabase(db);
+    await assertConfirmedLocalDatabase(db);
     await migrate(db, { migrationsFolder: "./drizzle" });
+    await clearLocalDatabase(db);
     const constraint = await db.$client.query<{ found: boolean }>(`SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PersonalData_bankAccount_check') AS found`);
     if (!constraint.rows[0]?.found) await db.$client.query(`ALTER TABLE "PersonalData" ADD CONSTRAINT "PersonalData_bankAccount_check" CHECK ("bankAccount" ~ '^[0-9]{10}$')`);
-    await seedEmployees(db, process.env.SEED_ADMIN_EMAIL ?? "kullatorn.chai@gmail.com");
+    await seedEmployees(db, adminEmail);
     const counts = await db.$client.query<{ employees: number; personal: number; contracts: number; invalid_banks: number }>(`SELECT (SELECT count(*)::int FROM "Employees") employees, (SELECT count(*)::int FROM "PersonalData") personal, (SELECT count(*)::int FROM "Contract") contracts, (SELECT count(*)::int FROM "PersonalData" WHERE "bankAccount" !~ '^[0-9]{10}$') invalid_banks`);
     const result = counts.rows[0];
     if (result?.employees !== 30 || result.personal !== 30 || result.contracts !== 30 || result.invalid_banks !== 0) throw new Error("Seed validation failed. Check the database before continuing.");

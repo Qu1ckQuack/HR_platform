@@ -2,7 +2,6 @@
 import {
   faBars,
   faHome,
-  faGear,
   faExpand,
 } from "@fortawesome/free-solid-svg-icons";
 import { EmployeeNotifications } from "./EmployeeNotifications";
@@ -10,13 +9,11 @@ import { EmployeeNotifications } from "./EmployeeNotifications";
 export type EmployeeHeaderProps = {
   onRefreshEmployees: () => void;
   onNavigateToLogin: () => void;
-  onNavigateToSecurity: () => void;
 };
 
 export function EmployeeHeader({
   onRefreshEmployees,
   onNavigateToLogin,
-  onNavigateToSecurity,
 }: EmployeeHeaderProps) {
   return (
     <header className="flex min-h-14 items-center justify-between gap-3 border-b border-gray-400 bg-white px-3 py-2 shadow-sm sm:px-5">
@@ -39,15 +36,6 @@ export function EmployeeHeader({
           className="hidden rounded-md bg-[#102d59] px-4 py-2 text-sm font-semibold text-white hover:cursor-pointer sm:block"
         >
           ＋ สร้างรายการ
-        </button>
-        <button
-          type="button"
-          title="ตั้งค่าความปลอดภัย"
-          onClick={onNavigateToSecurity}
-          className="min-h-10 min-w-10 rounded hover:bg-slate-100 hover:cursor-pointer"
-          aria-label="Show employee"
-        >
-          <FontAwesomeIcon icon={faGear} className="h-4 w-4" />
         </button>
         <button
           type="button"

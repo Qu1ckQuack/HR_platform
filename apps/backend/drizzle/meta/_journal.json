@@ -71,6 +71,20 @@
       "when": 1791936000000,
       "tag": "0010_password_reset_recovery",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792195200000,
+      "tag": "0011_email_recovery_employee_fields_and_login_limits",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792198800000,
+      "tag": "0012_prevent_self_employee_soft_delete",
+      "breakpoints": true
     }
   ]
 }

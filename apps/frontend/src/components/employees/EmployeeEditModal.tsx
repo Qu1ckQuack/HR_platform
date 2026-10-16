@@ -15,12 +15,14 @@ import type { EmployeeEditForm, EmployeeFormOptions } from "./form/types";
 
 export type EmployeeEditModalProps = {
   employee: Employee | null;
+  initialValues?: Partial<EmployeeEditForm>;
   close: () => void;
   onSaved: () => void;
 };
 
 export function EmployeeEditModal({
   employee,
+  initialValues,
   close,
   onSaved,
 }: EmployeeEditModalProps) {
@@ -41,6 +43,7 @@ export function EmployeeEditModal({
     salary: employee?.salary ?? "",
     businessEmail: employee?.businessEmail ?? "",
     phone: employee?.phone ?? "",
+    emergencyContactName: employee?.emergencyContactName ?? "",
     departmentId: employee?.departmentId ?? "",
     positionId: employee?.positionId ?? "",
     employmentType:
@@ -52,6 +55,7 @@ export function EmployeeEditModal({
     contractEndDate: employee?.contractEndDate ?? "",
     probationCompletionDate: employee?.probationCompletionDate ?? "",
     supervisorEmployeeId: employee?.supervisorEmployeeId ?? "",
+    ...initialValues,
   }));
   const [options, setOptions] = useState<EmployeeFormOptions>({
     departments: [],
@@ -252,7 +256,7 @@ export function EmployeeEditModal({
 
   return (
     <div
-      className="fixed inset-0 z-30 grid place-items-center bg-slate-950/45 p-3 sm:p-6"
+      className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/45 p-3 sm:p-6"
       onMouseDown={close}
     >
       <section
@@ -369,6 +373,11 @@ export function EmployeeEditModal({
                   inputMode="tel"
                   value={form.phone}
                   onChange={(value) => setField("phone", formatPhone(value))}
+                />
+                <FormInput
+                  label="ชื่อผู้ติดต่อกรณีฉุกเฉิน"
+                  value={form.emergencyContactName}
+                  onChange={(value) => setField("emergencyContactName", value)}
                 />
                 <FormSelect
                   label="เพศ"

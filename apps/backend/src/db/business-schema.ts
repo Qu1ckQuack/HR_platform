@@ -143,6 +143,7 @@ export const personalInfo = pgTable(
     location: text("location").notNull(),
     email: text("email").notNull(),
     phone: text("phone"),
+    emergencyContactName: text("emergencyContactName"),
     updatedAt: timestamp("updatedAt", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

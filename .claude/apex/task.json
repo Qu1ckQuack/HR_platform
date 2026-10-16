@@ -1,5 +1,5 @@
 ﻿{
-    "current_task":  "hr-platform-monorepo",
+    "current_task":  "hr-platform-auth-employees",
     "created_at":  "2026-10-02T04:34:12Z",
     "tasks":  {
                   "finish-employee-pdf-export":  {
@@ -30,6 +30,18 @@
                                                                      "nextjs-route-handlers":  true,
                                                                      "better-auth-express":  true,
                                                                      "otplib-totp":  true
+                                                                 }
+                                           }
+                  ,"hr-platform-auth-employees":  {
+                                               "subject":  "Use Resend for email OTP recovery, remove TOTP, and complete requested HR employee registry workflows",
+                                               "status":  "in_progress",
+                                               "phase":  "analysis",
+                                               "started_at":  "2026-10-17T00:00:00Z",
+                                               "doc_consulted":  {
+                                                                     "nextjs-authentication":  true,
+                                                                     "nextjs-cookies-headers":  true,
+                                                                     "resend-node-sdk":  true,
+                                                                     "postman-api-engineer":  true
                                                                  }
                                            }
               }

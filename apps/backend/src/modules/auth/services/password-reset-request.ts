@@ -36,11 +36,9 @@ export const requestPasswordReset = createPasswordResetRequester({
           otpHash: hash,
           otpExpiresAt: expiresAt,
           otpAttempts: 0,
-          authenticatorAttempts: 0,
           otpVerifiedAt: null,
           authTokenHash: null,
           authTokenExpiresAt: null,
-          authenticatorSecret: null,
           updatedAt: now,
         },
       });

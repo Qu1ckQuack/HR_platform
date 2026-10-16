@@ -4,6 +4,7 @@ import { requireHrSession } from "../../../lib/role-guard";
 declare module "express-serve-static-core" {
   interface Request {
     hrUserId?: string;
+    hrEmployeeId?: string;
   }
 }
 
@@ -16,6 +17,7 @@ export const requireHrUser: RequestHandler = async (request, response, next) => 
       return;
     }
     request.hrUserId = authorization.session.user.id;
+    request.hrEmployeeId = authorization.session.user.employeeId ?? undefined;
     next();
   } catch (error) {
     next(error);

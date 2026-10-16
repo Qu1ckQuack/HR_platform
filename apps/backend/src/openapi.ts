@@ -2,7 +2,7 @@ export const openApiDocument = {
   openapi: "3.1.0",
   info: { title: "HR Platform API", version: "1.0.0", description: "Employee management API. Authenticated operations require an HR session cookie." },
   servers: [{ url: "/" }],
-  tags: [{ name: "Employees" }],
+  tags: [{ name: "Employees" }, { name: "Authentication" }],
   paths: {
     "/api/employees": {
       get: { tags: ["Employees"], summary: "List and filter employees", parameters: [
@@ -13,9 +13,58 @@ export const openApiDocument = {
         { name: "employmentType", in: "query", schema: { type: "string" } },
         { name: "all", in: "query", schema: { type: "boolean" } },
       ], responses: { "200": { description: "Employee results and pagination" }, "401": { description: "Authentication required" } } },
-      post: { tags: ["Employees"], summary: "Create employee", requestBody: { required: true, content: { "application/json": { schema: { type: "object" } } } }, responses: { "201": { description: "Employee created" }, "400": { description: "Invalid input" } } },
+      post: {
+        tags: ["Employees"],
+        summary: "Create employee",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["prefix", "sex", "firstNameThai", "lastNameThai", "citizenId", "businessEmail", "departmentId", "positionId", "employmentType", "employmentStatus", "bankAccount", "location", "personalEmail", "salary"],
+                properties: {
+                  prefix: { type: "string", enum: ["นาย", "นาง", "นางสาว"] },
+                  sex: { type: "string", enum: ["ชาย", "หญิง", "อื่นๆ"] },
+                  firstNameThai: { type: "string" },
+                  lastNameThai: { type: "string" },
+                  citizenId: { type: "string", pattern: "^[0-9]{13}$" },
+                  businessEmail: { type: "string", format: "email" },
+                  personalEmail: { type: "string", format: "email" },
+                  departmentId: { type: "string", pattern: "^DEP_[0-9]{4,}$" },
+                  positionId: { type: "string", pattern: "^POS_[0-9]{4,}$" },
+                  employmentType: { type: "string", enum: ["พนักงานประจำ", "พนักงานพาร์ทไทม์", "พนักงานสัญญาจ้าง", "ฟรีแลนซ์"] },
+                  employmentStatus: { type: "string", enum: ["ทดลองงาน", "ปฏิบัติงาน", "พ้นสภาพ"] },
+                  startDate: { type: "string", format: "date" },
+                  contractEndDate: {
+                    anyOf: [{ type: "string", format: "date" }, { const: "" }],
+                    description: "Required and must be a date for fixed-term employees; otherwise may be empty.",
+                  },
+                  bankAccount: { type: "string", pattern: "^[0-9]{10}$" },
+                  location: { type: "string" },
+                  salary: { type: "string", pattern: "^[0-9]+(\\.[0-9]+)?$" },
+                  phone: { type: "string", pattern: "^0[0-9]{2}-[0-9]{3}-[0-9]{4}$" },
+                  emergencyContactName: { type: "string" },
+                },
+                allOf: [{
+                  if: { properties: { employmentType: { const: "พนักงานสัญญาจ้าง" } } },
+                  then: {
+                    required: ["contractEndDate"],
+                    properties: { contractEndDate: { type: "string", format: "date" } },
+                  },
+                }],
+              },
+            },
+          },
+        },
+        responses: { "201": { description: "Employee created" }, "400": { description: "Invalid input" } },
+      },
     },
-    "/api/employees/{id}": { delete: { tags: ["Employees"], summary: "Soft-delete an employee when employment requirements are met", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }], responses: { "200": { description: "Employee deleted" }, "409": { description: "Employment must be terminated and a fixed-term contract must have expired" } } } },
+    "/api/auth/password/reset/request-otp": { post: { tags: ["Authentication"], summary: "Request a password reset OTP for an HR employee", requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["contact"], properties: { contact: { type: "string", description: "Business or personal email, or registered phone number" } } } } } }, responses: { "202": { description: "Generic response that does not disclose account existence or email delivery status" }, "400": { description: "Invalid contact format" }, "413": { description: "JSON request body exceeds the 10 KiB limit" }, "429": { description: "OTP request limit reached" }, "503": { description: "Unable to process the request" } } } },
+    "/api/auth/password/reset/verify-otp": { post: { tags: ["Authentication"], summary: "Verify the email OTP and obtain a short-lived reset token", requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["contact", "code"], properties: { contact: { type: "string" }, code: { type: "string", pattern: "^[0-9]{6}$" } } } } } }, responses: { "200": { description: "OTP verified; returns authToken" }, "400": { description: "Invalid or expired OTP" } } } },
+    "/api/auth/password/reset/complete": { post: { tags: ["Authentication"], summary: "Complete password reset", requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["authToken", "newPassword", "confirmPassword"], properties: { authToken: { type: "string" }, newPassword: { type: "string", minLength: 12 }, confirmPassword: { type: "string", minLength: 12 } } } } } }, responses: { "200": { description: "Password changed and existing sessions revoked" }, "400": { description: "Invalid token, expired token, or mismatched password" } } } },
+    "/api/employees/import": { post: { tags: ["Employees"], summary: "Import employee rows from CSV or XLSX (up to 100 MiB)", requestBody: { required: true, content: { "text/csv": { schema: { type: "string", format: "binary" } }, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": { schema: { type: "string", format: "binary" } } } }, responses: { "200": { description: "Imported rows and incomplete rows available for edit or dismissal" }, "413": { description: "File exceeds 100 MiB" }, "401": { description: "Authentication required" } } } },
+      "/api/employees/{id}": { delete: { tags: ["Employees"], summary: "Soft-delete an employee when employment requirements are met", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }], responses: { "200": { description: "Employee deleted" }, "403": { description: "Cannot delete the employee record linked to the current session" }, "409": { description: "Employment must be terminated and a fixed-term contract must have expired" } } } },
     "/api/employees/contracts/{contractId}/{action}": {
       post: { tags: ["Employees"], summary: "Perform a contract action", parameters: [{ name: "contractId", in: "path", required: true, schema: { type: "string" } }, { name: "action", in: "path", required: true, schema: { type: "string", enum: ["approve-probation", "reject-probation", "renew"] } }], responses: { "200": { description: "Contract action completed" }, "409": { description: "Contract state or dates do not meet action requirements" } } },
       delete: { tags: ["Employees"], summary: "Cancel a terminated contract", parameters: [{ name: "contractId", in: "path", required: true, schema: { type: "string" } }, { name: "action", in: "path", required: true, schema: { type: "string", enum: ["cancel"] } }], responses: { "200": { description: "Contract cancelled" }, "409": { description: "Only terminated contracts may be cancelled" } } },

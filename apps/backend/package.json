@@ -4,18 +4,20 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch scripts/dev-server.ts",
     "build": "tsc --noEmit -p tsconfig.json",
     "start": "tsx src/server.ts",
     "lint": "eslint src scripts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "tsx --test src/lib/role-guard.test.ts src/modules/auth/services/password-reset-requester.test.ts src/modules/auth/services/password-reset-email.test.ts src/modules/auth/controllers/password-recovery.controller.test.ts src/modules/auth/middleware/password-recovery-error-handler.test.ts",
+    "test": "tsx --test src/lib/role-guard.test.ts src/lib/auth-ip-config.test.ts src/lib/rate-limit-retry.test.ts src/lib/database-connection-config.test.ts src/modules/auth/services/password-reset-requester.test.ts src/modules/auth/services/password-reset-email.test.ts src/modules/auth/controllers/password-recovery.controller.test.ts src/modules/auth/middleware/password-recovery-error-handler.test.ts",
     "db:generate": "drizzle-kit generate",
     "db:ensure": "tsx scripts/ensure-database.ts",
     "db:migrate": "drizzle-kit migrate",
     "db:setup": "npm run db:ensure && npm run db:migrate",
+    "db:clear": "tsx scripts/clear-database.ts",
+    "db:reset-demo": "tsx scripts/reset-demo-database.ts",
     "seed:auth": "tsx scripts/seed-auth.ts",
-    "seed:employees": "tsx scripts/seed-employees.ts",
+    "seed:employees": "npm run db:reset-demo --",
     "verify:demo": "tsx scripts/verify-demo-seed.ts"
   },
   "dependencies": {
@@ -26,14 +28,12 @@
     "drizzle-orm": "^0.45.3",
     "exceljs": "^4.4.0",
     "express": "^5.1.0",
-    "nodemailer": "^10.1.1",
-    "otplib": "^13.5.0",
     "pg": "^8.23.0",
+    "resend": "^6.34.1",
     "swagger-ui-express": "^5.0.1",
     "tsx": "^4.23.15"
   },
   "devDependencies": {
-    "@types/nodemailer": "^8.0.2",
     "@types/swagger-ui-express": "^4.1.8"
   }
 }

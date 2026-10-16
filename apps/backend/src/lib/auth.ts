@@ -3,6 +3,8 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 
 import { authDatabaseHooks } from "./auth-database-hooks";
 import { db } from "./db";
+import { getAuthIpAddressOptions } from "./auth-ip-config";
+import { consumeAuthRateLimit } from "./auth-rate-limit-storage";
 
 const authSecret =
   process.env.BETTER_AUTH_SECRET ??
@@ -37,6 +39,9 @@ export const auth = betterAuth({
   },
   rateLimit: {
     enabled: true,
+    customStorage: {
+      consume: consumeAuthRateLimit,
+    },
     customRules: {
       "/sign-in/email": { window: 15 * 60, max: 5 },
     },
@@ -45,6 +50,9 @@ export const auth = betterAuth({
     process.env.FRONTEND_URL ?? "http://localhost:3000",
     process.env.BETTER_AUTH_URL ?? "http://localhost:4000",
   ],
+  advanced: {
+    ipAddress: getAuthIpAddressOptions(),
+  },
 });
 
 export type Session = typeof auth.$Infer.Session;

@@ -93,47 +93,82 @@ function Logo() {
 export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("");
   const [resetMode, setResetMode] = useState(false);
+  const [resetStep, setResetStep] = useState<"contact" | "otp" | "password">("contact");
+  const [recoveryContact, setRecoveryContact] = useState("");
+  const [authToken, setAuthToken] = useState("");
 
   const submit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
+    setNotice("");
     setIsLoading(true);
 
-    const formData = new FormData(event.currentTarget);
-    const result = await authClient.signIn.email({
-      email: String(formData.get("email") ?? ""),
-      password: String(formData.get("password") ?? ""),
-      rememberMe,
-    });
-
-    setIsLoading(false);
-
-    if (result.error) {
-      setError("อีเมลหรือรหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง");
-      return;
+    try {
+      const formData = new FormData(event.currentTarget);
+      const result = await authClient.signIn.email({
+        email: String(formData.get("email") ?? ""),
+        password: String(formData.get("password") ?? ""),
+        rememberMe,
+      });
+      if (result.error) {
+        setError("อีเมลหรือรหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง");
+        return;
+      }
+      router.push("/employees");
+    } catch {
+      setError("ไม่สามารถเชื่อมต่อระบบได้ กรุณาลองอีกครั้ง");
+    } finally {
+      setIsLoading(false);
     }
 
-    router.push("/employees");
   };
 
   const submitReset = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
+    setNotice("");
     setIsLoading(true);
     const data = new FormData(event.currentTarget);
     try {
-      const response = await fetch("/api/auth/password/reset", {
+      const endpoint = resetStep === "contact"
+        ? "/api/auth/password/reset/request-otp"
+        : resetStep === "otp"
+          ? "/api/auth/password/reset/verify-otp"
+          : "/api/auth/password/reset/complete";
+      const body = resetStep === "contact"
+        ? { contact: data.get("contact") }
+        : resetStep === "otp"
+          ? { contact: recoveryContact, code: data.get("code") }
+          : { authToken, newPassword: data.get("newPassword"), confirmPassword: data.get("confirmPassword") };
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: data.get("email"), token: data.get("token"), newPassword: data.get("newPassword") }),
+        body: JSON.stringify(body),
       });
-      const result = await response.json() as { error?: string };
+      const result = await response.json() as { error?: string; authToken?: string };
       if (!response.ok) throw new Error(result.error ?? "ไม่สามารถเปลี่ยนรหัสผ่านได้");
-      setResetMode(false);
-      setError("เปลี่ยนรหัสผ่านแล้ว กรุณาเข้าสู่ระบบด้วยรหัสผ่านใหม่");
+      if (resetStep === "contact") {
+        setRecoveryContact(String(data.get("contact") ?? ""));
+        setResetStep("otp");
+        setError("");
+        setNotice("หากข้อมูลตรงกับพนักงาน HR ที่ใช้งานอยู่ ระบบจะส่งรหัส OTP ไปยังอีเมลที่ลงทะเบียนไว้ หากไม่ได้รับ โปรดลองขอรหัสอีกครั้ง");
+      } else if (resetStep === "otp" && result.authToken) {
+        setAuthToken(result.authToken);
+        setResetStep("password");
+        setError("");
+      } else if (resetStep === "otp") {
+        throw new Error("ไม่สามารถยืนยันรหัส OTP ได้ กรุณาลองอีกครั้ง");
+      } else {
+        setResetMode(false);
+        setResetStep("contact");
+        setAuthToken("");
+        setNotice("เปลี่ยนรหัสผ่านแล้ว กรุณาเข้าสู่ระบบด้วยรหัสผ่านใหม่");
+      }
     } catch (resetError) {
       setError(resetError instanceof Error ? resetError.message : "ไม่สามารถเปลี่ยนรหัสผ่านได้");
     } finally {
@@ -166,53 +201,42 @@ export default function LoginPage() {
             <div className="mx-auto w-fit">
               <Logo />
             </div>
-            <h1 className="mt-6 text-xl font-bold">
-              ยินดีต้อนรับเข้าสู่ระบบ HR
-            </h1>
+            <h1 className="mt-6 text-xl font-bold">{resetMode ? "รีเซ็ตรหัสผ่าน" : "ยินดีต้อนรับเข้าสู่ระบบ HR"}</h1>
             <p className="mt-1 text-sm text-slate-400">
               กรุณาเข้าสู่ระบบเพื่อใช้งาน
             </p>
           </div>
-          <label className="text-sm font-medium text-slate-600">
-            อีเมล
-            <input
-              name="email"
-              required
-              type="email"
-              autoComplete="email"
-              className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 outline-none focus:border-[#2867b4]"
-              placeholder="กรอกอีเมล"
-            />
-          </label>
-          <label className="mt-5 block text-sm font-medium text-slate-600">
-              {resetMode ? "รหัสผ่านใหม่" : "รหัสผ่าน"}
-            <input
-              name={resetMode ? "newPassword" : "password"}
-              required
-              type="password"
-              autoComplete={resetMode ? "new-password" : "current-password"}
-              className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 outline-none focus:border-[#2867b4]"
-              placeholder="กรอกรหัสผ่าน"
-            />
-          </label>
-          {resetMode && (
-            <label className="mt-5 block text-sm font-medium text-slate-600">
-              รหัสจากแอป Authenticator
-              <input name="token" required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="one-time-code" className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 outline-none focus:border-[#2867b4]" />
-            </label>
-          )}
+          {(!resetMode || resetStep === "contact") && <label className="text-sm font-medium text-slate-600">
+            {resetMode ? "อีเมลหรือเบอร์โทรศัพท์" : "อีเมล"}
+            <input name={resetMode ? "contact" : "email"} required type={resetMode ? "text" : "email"}
+              value={resetMode ? recoveryContact : loginEmail} onChange={(event) => resetMode ? setRecoveryContact(event.target.value) : setLoginEmail(event.target.value)}
+              autoComplete="email" className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 outline-none focus:border-[#2867b4]"
+              placeholder={resetMode ? "กรอกอีเมลหรือเบอร์โทรศัพท์" : "กรอกอีเมล"} />
+          </label>}
+          {!resetMode && <label className="mt-5 block text-sm font-medium text-slate-600">รหัสผ่าน
+            <input name="password" required type="password" autoComplete="current-password" className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 outline-none focus:border-[#2867b4]" placeholder="กรอกรหัสผ่าน" />
+          </label>}
+          {resetMode && resetStep === "otp" && <label className="mt-5 block text-sm font-medium text-slate-600">กรอกรหัส OTP หากได้รับทางอีเมล
+            <input name="code" required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="one-time-code" className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 outline-none focus:border-[#2867b4]" />
+          </label>}
+          {notice && <p role="status" className="mt-4 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800">{notice}</p>}
+          {resetMode && resetStep === "otp" && <button type="button" onClick={() => { setResetStep("contact"); setNotice(""); }} className="mt-3 text-sm text-[#2867b4] underline">เปลี่ยนอีเมลหรือเบอร์โทร / ขอรหัสใหม่</button>}
+          {resetMode && resetStep === "password" && <>
+            <label className="mt-5 block text-sm font-medium text-slate-600">รหัสผ่านใหม่<input name="newPassword" required minLength={12} type="password" autoComplete="new-password" className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 outline-none focus:border-[#2867b4]" /></label>
+            <label className="mt-5 block text-sm font-medium text-slate-600">ยืนยันรหัสผ่านใหม่<input name="confirmPassword" required minLength={12} type="password" autoComplete="new-password" className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 outline-none focus:border-[#2867b4]" /></label>
+          </>}
           <div className="mt-5 flex justify-between text-sm">
-            <label className="flex gap-2">
+            {!resetMode && <label className="flex gap-2">
               <input
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(event) => setRememberMe(event.target.checked)}
               />
               จดจำฉันไว้
-            </label>
+            </label>}
             <button
               type="button"
-              onClick={() => { setResetMode((current) => !current); setError(""); }}
+              onClick={() => { setResetMode((current) => !current); setResetStep("contact"); setAuthToken(""); setError(""); setNotice(""); }}
               className="text-[#2867b4] underline"
             >
               {resetMode ? "กลับไปเข้าสู่ระบบ" : "ลืมรหัสผ่าน?"}
@@ -231,7 +255,7 @@ export default function LoginPage() {
             disabled={isLoading}
             className="mt-7 min-h-12 w-full rounded-lg bg-[#2867b4] font-semibold text-white disabled:cursor-wait disabled:opacity-60"
           >
-            {isLoading ? "กำลังดำเนินการ�" : resetMode ? "เปลี่ยนรหัสผ่าน" : "เข้าสู่ระบบ  →"}
+            {isLoading ? "กำลังดำเนินการ…" : resetMode ? resetStep === "contact" ? "ส่งรหัส OTP" : resetStep === "otp" ? "ยืนยัน OTP" : "บันทึกรหัสผ่านใหม่" : "เข้าสู่ระบบ  →"}
           </button>
         </form>
       </section>

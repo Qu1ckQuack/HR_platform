@@ -3,9 +3,14 @@ import express from "express";
 import swaggerUi from "swagger-ui-express";
 import { config } from "dotenv";
 import path from "node:path";
+import { requireDatabaseUrl } from "./lib/database-connection-config";
 
 config({ path: path.resolve(process.cwd(), "../../.env.local") });
 config({ path: path.resolve(process.cwd(), "../../.env") });
+requireDatabaseUrl();
+
+const { assertAuthIpAddressOptionsConfigured } = await import("./lib/auth-ip-config");
+assertAuthIpAddressOptionsConfigured();
 
 const [{ toNodeHandler }, { auth }, { passwordRecoveryRouter }, { employeeRouter }] = await Promise.all([
   import("better-auth/node"),
@@ -13,6 +18,9 @@ const [{ toNodeHandler }, { auth }, { passwordRecoveryRouter }, { employeeRouter
   import("./modules/auth/routes/password-recovery"),
   import("./modules/employees/routes"),
 ]);
+const { assertAuthRateLimitStorageReady } = await import("./lib/auth-rate-limit-readiness");
+
+await assertAuthRateLimitStorageReady();
 
 const app = express();
 const { openApiDocument } = await import("./openapi");

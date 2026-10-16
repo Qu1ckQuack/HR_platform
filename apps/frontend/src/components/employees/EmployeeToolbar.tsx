@@ -1,13 +1,15 @@
 ﻿import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {faUserPlus } from "@fortawesome/free-solid-svg-icons";
 import { ImportEmployeesButton } from "./ImportEmployeesButton";
+import type { ImportDraft } from "./ImportEmployeesButton";
 
 export type EmployeeToolbarProps = {
   onCreateEmployee: () => void;
   onImported: () => void;
+  onEditDraft: (draft: ImportDraft, onSaved: () => void) => void;
 };
 
-export function EmployeeToolbar({ onCreateEmployee, onImported }: EmployeeToolbarProps) {
+export function EmployeeToolbar({ onCreateEmployee, onImported, onEditDraft }: EmployeeToolbarProps) {
   return (
     <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
@@ -22,7 +24,7 @@ export function EmployeeToolbar({ onCreateEmployee, onImported }: EmployeeToolba
         </p>
       </div>
       <div className="flex gap-2">
-        <ImportEmployeesButton onImported={onImported} />
+        <ImportEmployeesButton onImported={onImported} onEditDraft={onEditDraft} />
         <button
           type="button"
           onClick={onCreateEmployee}

@@ -158,6 +158,7 @@ export async function updateEmployeeRecord(actorId: string, id: string, values: 
         location: values.location,
         email: values.personalEmail,
         phone: values.phone || null,
+        emergencyContactName: values.emergencyContactName || null,
       })
       .onConflictDoUpdate({
         target: personalInfo.employeeId,
@@ -171,6 +172,7 @@ export async function updateEmployeeRecord(actorId: string, id: string, values: 
           location: values.location,
           email: values.personalEmail,
           phone: values.phone || null,
+          emergencyContactName: values.emergencyContactName || null,
         },
       });
 
@@ -299,6 +301,7 @@ export async function createEmployeeRecord(
         location: values.location,
         email: values.personalEmail,
         phone: values.phone || null,
+        emergencyContactName: values.emergencyContactName || null,
       });
 
       const [contract] = await tx
@@ -397,6 +400,7 @@ export type EmployeeActionResult =
 
 const actionMessages: Record<string, string> = {
   action_not_allowed: "คุณไม่มีสิทธิ์ดำเนินการนี้",
+  cannot_delete_self: "ไม่สามารถลบบัญชีพนักงานที่กำลังเข้าสู่ระบบได้",
   employee_not_found: "ไม่พบพนักงาน หรือถูกลบไปแล้ว",
   employee_not_terminated: "ลบพนักงานไม่ได้: ต้องพ้นสภาพแล้วเท่านั้น",
   contract_not_expired: "ลบพนักงานไม่ได้: สัญญาจ้างยังไม่ถึงวันครบกำหนด",
@@ -413,7 +417,7 @@ async function runExpectedAction(action: () => Promise<unknown>): Promise<Employ
     const code = result.rows?.[0]?.outcome ?? "ok";
     return code === "ok"
       ? { ok: true }
-      : { ok: false, code, message: actionMessages[code] ?? "ดำเนินการไม่ได้: ข้อมูลไม่ตรงตามเงื่อนไข", status: code === "employee_not_found" ? 404 : 409 };
+      : { ok: false, code, message: actionMessages[code] ?? "ดำเนินการไม่ได้: ข้อมูลไม่ตรงตามเงื่อนไข", status: code === "employee_not_found" ? 404 : code === "cannot_delete_self" ? 403 : 409 };
   } catch (error) {
     if (getPostgresErrorCode(error) === "42501") {
       return { ok: false, code: "action_not_allowed", message: actionMessages.action_not_allowed, status: 403 };
@@ -456,9 +460,12 @@ export async function cancelTerminatedContractRecord(actorId: string, contractId
   return runExpectedAction(() => db.execute(sql`SELECT cancel_terminated_contract(${actorId}, ${privateId}) AS outcome`));
 }
 
-export async function softDeleteEmployeeRecord(actorId: string, publicEmployeeId: string): Promise<EmployeeActionResult> {
+export async function softDeleteEmployeeRecord(actorId: string, publicEmployeeId: string, actorEmployeeId: string): Promise<EmployeeActionResult> {
   const privateId = await findEmployeePrivateId(publicEmployeeId);
   if (!privateId) return { ok: false, code: "employee_not_found", message: actionMessages.employee_not_found };
+  if (privateId === actorEmployeeId) {
+    return { ok: false, code: "cannot_delete_self", message: actionMessages.cannot_delete_self, status: 403 };
+  }
   return runExpectedAction(() => db.execute(sql`SELECT soft_delete_employee(${actorId}, ${privateId}) AS outcome`));
 }
 

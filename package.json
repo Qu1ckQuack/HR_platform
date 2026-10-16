@@ -17,8 +17,10 @@
     "db:ensure": "npm run db:ensure --workspace @hr-platform/backend",
     "db:migrate": "npm run db:migrate --workspace @hr-platform/backend",
     "db:setup": "npm run db:setup --workspace @hr-platform/backend",
+    "db:clear": "npm run db:clear --workspace @hr-platform/backend --",
+    "db:reset-demo": "npm run db:reset-demo --workspace @hr-platform/backend --",
     "seed:auth": "npm run seed:auth --workspace @hr-platform/backend",
-    "seed:employees": "npm run seed:employees --workspace @hr-platform/backend"
+    "seed:employees": "npm run db:reset-demo --workspace @hr-platform/backend --"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

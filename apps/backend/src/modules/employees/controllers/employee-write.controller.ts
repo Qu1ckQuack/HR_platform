@@ -52,7 +52,7 @@ export const createOption: RequestHandler = async (request, response) => {
 export const deleteEmployee: RequestHandler = async (request, response) => {
   try {
     const id = String(request.params.id);
-    const result = await employeeService.softDeleteEmployee(request.hrUserId!, id);
+    const result = await employeeService.softDeleteEmployee(request.hrUserId!, id, request.hrEmployeeId!);
     if (!result.ok) {
       response.status(result.status ?? 409).json({ code: result.code, error: result.message });
       return;

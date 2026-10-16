@@ -30,7 +30,7 @@ export function createRequestOtpHandler(
     try {
       const result = await requester(validEmail ? contact : phoneDigits, request.ip ?? "unknown", requestId);
       if (result === "not_found") {
-        response.status(404).json({ error: "No HR employee account was found. Check the email or phone number and try again.", requestId });
+        response.status(202).json({ message: "If the contact matches an active HR employee, a code will be sent to the registered email.", requestId });
         return;
       }
       if (result === "rate_limited") {
@@ -38,10 +38,10 @@ export function createRequestOtpHandler(
         return;
       }
       if (result === "delivery_failed") {
-        response.status(503).json({ error: "We could not send the OTP. Please try again later.", requestId });
+        response.status(202).json({ message: "If the contact matches an active HR employee, a code will be sent to the registered email.", requestId });
         return;
       }
-      response.status(202).json({ message: "A verification code was sent to the registered email.", requestId });
+      response.status(202).json({ message: "If the contact matches an active HR employee, a code will be sent to the registered email.", requestId });
     } catch (error) {
       logFailure(requestId, error);
       response.status(503).json({ error: "Unable to process the request right now. Please try again later.", requestId });

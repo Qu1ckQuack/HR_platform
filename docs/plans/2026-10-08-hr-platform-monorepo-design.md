@@ -40,3 +40,14 @@
 
 - Run ESLint, production builds for both apps, and TypeScript checks for frontend/backend.
 - Preserve pre-existing changes and report any blocker caused by workspace permissions.
+# 2026-10-17 approved revision
+
+The current product direction supersedes the TOTP password recovery design below:
+
+- Remove Authenticator/TOTP enrollment, recovery prompts, account settings links, and stored TOTP fields with a forward migration.
+- Send email recovery OTPs through Resend. Requests accept a business/personal email or registered phone for an active HR employee; responses do not reveal whether an account exists. OTP verification returns a short-lived server token, then the user sets and confirms a new password.
+- Persist the five-attempt login rate limit per client IP in PostgreSQL so it survives browser refreshes and service restarts.
+- Protect employee pages by requiring a backend session. Employee import accepts CSV/XLSX up to 100 MiB and offers failed rows for edit or dismissal. Employee export expands names, department/position, and contract/probation dates into separate worksheet columns.
+- Add emergency contact name to employee personal data and validate business email and phone formats at the API boundary.
+
+Runtime configuration for email recovery requires `RESEND_API_KEY` and `RESEND_FROM` in the backend environment.

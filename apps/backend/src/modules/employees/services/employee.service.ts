@@ -36,7 +36,7 @@ const employmentTypes = new Set<ContractType>([
   "พนักงานสัญญาจ้าง",
   "ฟรีแลนซ์",
 ]);
-const phonePattern = /^\d{3}-\d{3}-\d{4}$/;
+const phonePattern = /^0\d{2}-\d{3}-\d{4}$/;
 const employeeCodePattern = /^EMP\d{5,}$/;
 const departmentCodePattern = /^DEP_\d{4,}$/;
 const positionCodePattern = /^POS_\d{4,}$/;
@@ -70,14 +70,10 @@ export async function listEmployees({
     }
   }
 
+  const searchTerms = search.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
   const searchResults = Array.from(employeeMap.values()).filter((employee) => {
-    const matchesSearch =
-      !search ||
-      Object.values(employee).some(
-        (value) =>
-          (typeof value === "string" || typeof value === "number") &&
-          String(value).toLocaleLowerCase().includes(search),
-      );
+    const searchableText = Object.values(employee).join(" ").toLocaleLowerCase();
+    const matchesSearch = searchTerms.every((term) => searchableText.includes(term));
     return matchesSearch;
   });
   const filteredEmployees = searchResults.filter((employee) => {
@@ -243,9 +239,9 @@ export async function renewContract(actorId: string, contractId: string, input: 
   return renewContractRecord(actorId, contractId, endDate);
 }
 
-export async function softDeleteEmployee(actorId: string, employeeId: string) {
+export async function softDeleteEmployee(actorId: string, employeeId: string, actorEmployeeId: string) {
   if (!employeeCodePattern.test(employeeId)) return invalidAction("รหัสพนักงานไม่ถูกต้อง");
-  return softDeleteEmployeeRecord(actorId, employeeId);
+  return softDeleteEmployeeRecord(actorId, employeeId, actorEmployeeId);
 }
 
 export async function restoreEmployee(actorId: string, employeeId: string) {
@@ -310,6 +306,7 @@ function normalizeEmployeeInput(input: unknown): EmployeeUpdate {
     personalEmail: String(body.personalEmail ?? "").trim().toLowerCase(),
     businessEmail: String(body.businessEmail ?? "").trim().toLowerCase(),
     phone: String(body.phone ?? "").trim(),
+    emergencyContactName: String(body.emergencyContactName ?? "").trim(),
     religion: String(body.religion ?? "").trim() || "ไม่มีศาสนา",
     disability: String(body.disability ?? "").trim(),
     criminalRecord: String(body.criminalRecord ?? "").trim(),
@@ -435,6 +432,7 @@ function serializeEmployee(row: Awaited<ReturnType<typeof findEmployeesWithCurre
     taxAllowance: personal?.taxAllowance ?? "",
     businessEmail: employee.companyEmail,
     phone: maskValue(personal?.phone ?? "", 4),
+    emergencyContactName: personal?.emergencyContactName ?? "",
     department: department?.departmentName ?? "ยังไม่ระบุ",
     departmentId: positionHistory?.departmentId ?? "",
     position: position?.positionName ?? "ยังไม่ระบุ",

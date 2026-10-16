@@ -1,6 +1,7 @@
 import { config } from "dotenv";
 import { defineConfig } from "drizzle-kit";
 import path from "node:path";
+import { requireDatabaseUrl } from "./src/lib/database-connection-config";
 
 config({ path: path.resolve(process.cwd(), "../../.env.local") });
 config({ path: path.resolve(process.cwd(), "../../.env") });
@@ -10,6 +11,6 @@ export default defineConfig({
   out: "./drizzle",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? "",
+    url: requireDatabaseUrl(),
   },
 });

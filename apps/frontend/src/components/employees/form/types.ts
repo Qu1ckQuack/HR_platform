@@ -17,6 +17,7 @@ export type EmployeeEditForm = {
   salary: string;
   businessEmail: string;
   phone: string;
+  emergencyContactName: string;
   departmentId: string;
   positionId: string;
   employmentType: string;

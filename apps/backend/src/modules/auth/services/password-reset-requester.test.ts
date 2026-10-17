@@ -4,7 +4,12 @@ import { createPasswordResetRequester, type PasswordResetRequesterDependencies }
 
 function createHarness(overrides: Partial<PasswordResetRequesterDependencies> = {}) {
   const events: string[] = [];
-  const logs: Array<{ event: string; requestId: string; code?: string }> = [];
+  const logs: Array<{
+    event: string;
+    requestId: string;
+    code?: string;
+    details?: Record<string, string | number | boolean | undefined>;
+  }> = [];
   const savedRecords: Array<{ userId: string; hash: string; expiresAt: Date }> = [];
   const sentEmails: Array<{ email: string; code: string }> = [];
   const dependencies = {
@@ -18,9 +23,14 @@ function createHarness(overrides: Partial<PasswordResetRequesterDependencies> = 
       sentEmails.push({ email, code });
     },
     deleteOtp: async () => { events.push("delete"); },
-    log: (event: string, requestId: string, error?: unknown) => {
+    log: (
+      event: string,
+      requestId: string,
+      error?: unknown,
+      details?: Record<string, string | number | boolean | undefined>,
+    ) => {
       const code = error && typeof error === "object" && "code" in error ? String(error.code) : undefined;
-      logs.push({ event, requestId, ...(code ? { code } : {}) });
+      logs.push({ event, requestId, ...(code ? { code } : {}), ...(details ? { details } : {}) });
     },
     createCode: () => "123456",
     hashCode: (value: string) => `hashed:${value}`,
@@ -43,7 +53,17 @@ test("stores an OTP before sending and reports a successful delivery", async () 
     expiresAt: new Date("2026-10-15T00:10:00.000Z"),
   }]);
   assert.deepEqual(sentEmails, [{ email: "hr@example.test", code: "123456" }]);
-  assert.deepEqual(logs, [{ event: "otp_email_sent", requestId: "request-1" }]);
+  assert.deepEqual(logs.map(({ event }) => event), [
+    "request_processing_started",
+    "account_lookup_started",
+    "account_lookup_completed",
+    "otp_persist_started",
+    "otp_persist_succeeded",
+    "email_delivery_started",
+    "otp_email_sent",
+  ]);
+  assert.equal(logs[2]?.details?.accountFound, true);
+  assert.equal(typeof logs[6]?.details?.durationMs, "number");
 });
 
 test("does not store or send when no eligible account matches", async () => {
@@ -64,7 +84,23 @@ test("removes the newly stored OTP when email delivery fails", async () => {
 
   assert.equal(result, "delivery_failed");
   assert.deepEqual(events, ["save", "send", "delete"]);
-  assert.deepEqual(logs, [{ event: "email_delivery_failed", requestId: "request-3", code: "ECONNECTION" }]);
+  assert.deepEqual(logs.map(({ event }) => event), [
+    "request_processing_started",
+    "account_lookup_started",
+    "account_lookup_completed",
+    "otp_persist_started",
+    "otp_persist_succeeded",
+    "email_delivery_started",
+    "otp_cleanup_started",
+    "otp_cleanup_succeeded",
+    "email_delivery_failed",
+  ]);
+  assert.deepEqual(logs.at(-1), {
+    event: "email_delivery_failed",
+    requestId: "request-3",
+    code: "ECONNECTION",
+    details: { durationMs: logs.at(-1)?.details?.durationMs },
+  });
 });
 
 test("preserves delivery failure diagnostics when OTP cleanup also fails", async () => {
@@ -78,6 +114,13 @@ test("preserves delivery failure diagnostics when OTP cleanup also fails", async
   assert.equal(result, "delivery_failed");
   assert.deepEqual(events, ["save", "send", "delete"]);
   assert.deepEqual(logs.map(({ event, requestId }) => [event, requestId]), [
+    ["request_processing_started", "request-4"],
+    ["account_lookup_started", "request-4"],
+    ["account_lookup_completed", "request-4"],
+    ["otp_persist_started", "request-4"],
+    ["otp_persist_succeeded", "request-4"],
+    ["email_delivery_started", "request-4"],
+    ["otp_cleanup_started", "request-4"],
     ["otp_cleanup_failed", "request-4"],
     ["email_delivery_failed", "request-4"],
   ]);
@@ -105,9 +148,16 @@ test("rate limits after the configured number without writing another OTP", asyn
 
   assert.equal(result, "rate_limited");
   assert.deepEqual(events, ["save", "send"]);
-  assert.deepEqual(logs, [
-    { event: "otp_email_sent", requestId: "first" },
-    { event: "rate_limited", requestId: "second" },
+  assert.deepEqual(logs.map(({ event, requestId }) => [event, requestId]), [
+    ["request_processing_started", "first"],
+    ["account_lookup_started", "first"],
+    ["account_lookup_completed", "first"],
+    ["otp_persist_started", "first"],
+    ["otp_persist_succeeded", "first"],
+    ["email_delivery_started", "first"],
+    ["otp_email_sent", "first"],
+    ["request_processing_started", "second"],
+    ["rate_limited", "second"],
   ]);
 });
 
@@ -119,7 +169,14 @@ test("logs and rethrows OTP persistence errors without attempting email", async 
   await assert.rejects(requester("hr@example.test", "192.0.2.7", "request-db"), /database failure/);
 
   assert.deepEqual(events, ["save"]);
-  assert.deepEqual(logs, [{ event: "otp_persist_failed", requestId: "request-db", code: "42P01" }]);
+  assert.deepEqual(logs.map(({ event }) => event), [
+    "request_processing_started",
+    "account_lookup_started",
+    "account_lookup_completed",
+    "otp_persist_started",
+    "otp_persist_failed",
+  ]);
+  assert.equal(logs.at(-1)?.code, "42P01");
 });
 
 test("allows a new request after the rate-limit window expires", async () => {

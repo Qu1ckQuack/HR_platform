@@ -6,20 +6,20 @@ import { findHrAccount } from "./password-reset-identity";
 import { sendResetOtpEmail } from "./password-reset-email";
 import { createEmailCode, createRecoveryToken, hashRecoveryValue, matchesRecoveryValue } from "./password-reset-crypto";
 import { createPasswordResetRequester } from "./password-reset-requester";
+import { getSafeBackendErrorFields, logBackendEvent } from "../../../lib/backend-logger";
 
-function safeErrorCode(error: unknown) {
-  return error && typeof error === "object" && "code" in error ? String(error.code) : undefined;
-}
-
-function logRequestEvent(event: string, requestId: string, error?: unknown) {
-  const details = {
-    event: `password_recovery.${event}`,
+function logRequestEvent(
+  event: string,
+  requestId: string,
+  error?: unknown,
+  details: Record<string, string | number | boolean | undefined> = {},
+) {
+  const level = event.endsWith("failed") ? "error" : event === "rate_limited" ? "warn" : "info";
+  logBackendEvent(`password_recovery.${event}`, {
     requestId,
-    errorName: error instanceof Error ? error.name : undefined,
-    errorCode: safeErrorCode(error),
-  };
-  if (event.endsWith("failed")) console.error(details);
-  else console.info(details);
+    ...details,
+    ...(error === undefined ? {} : getSafeBackendErrorFields(error)),
+  }, level, "password_recovery");
 }
 
 export const requestPasswordReset = createPasswordResetRequester({

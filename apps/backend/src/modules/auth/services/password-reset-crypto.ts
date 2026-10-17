@@ -1,13 +1,8 @@
 import { createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
-
-function secret() {
-  const value = process.env.BETTER_AUTH_SECRET;
-  if (!value) throw new Error("BETTER_AUTH_SECRET is not configured");
-  return value;
-}
+import { getBetterAuthSecret } from "../../../lib/auth-secret";
 
 export function hashRecoveryValue(value: string) {
-  return createHmac("sha256", secret()).update(value).digest("hex");
+  return createHmac("sha256", getBetterAuthSecret()).update(value).digest("hex");
 }
 
 export function matchesRecoveryValue(value: string, expectedHash: string) {

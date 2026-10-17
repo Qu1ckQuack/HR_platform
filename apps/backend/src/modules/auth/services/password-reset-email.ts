@@ -16,5 +16,5 @@ export async function sendResetOtpEmail(email: string, code: string) {
     subject: "รหัส OTP สำหรับรีเซ็ตรหัสผ่าน HR Platform",
     text: `รหัส OTP สำหรับรีเซ็ตรหัสผ่านของคุณคือ ${code}\nรหัสนี้มีอายุ 10 นาที\nหากคุณไม่ได้ร้องขอรีเซ็ตรหัสผ่าน โปรดเพิกเฉยต่ออีเมลฉบับนี้`,
   });
-  if (error) throw new Error(`Resend email delivery failed: ${error.message}`);
+  if (error) throw new Error(`Resend email delivery failed: ${error.message}`, { cause: error });
 }

@@ -1,6 +1,6 @@
 export const openApiDocument = {
   openapi: "3.1.0",
-  info: { title: "HR Platform API", version: "1.0.0", description: "Employee management API. Authenticated operations require an HR session cookie." },
+  info: { title: "HR Platform API", version: "1.0.0", description: "Employee management API. Authenticated operations require an HR session cookie. Responses include an X-Request-Id header for backend log correlation." },
   servers: [{ url: "/" }],
   tags: [{ name: "Employees" }, { name: "Authentication" }],
   paths: {

@@ -4,14 +4,16 @@ import { completePasswordReset } from "../services/password-reset-completion";
 import { parseRecoveryEmail } from "../services/password-reset-address";
 import { requestPasswordReset, verifyPasswordResetEmail } from "../services/password-reset-request";
 import type { PasswordResetRequestState } from "../services/password-reset-requester";
+import { getSafeBackendErrorFields, logBackendEvent } from "../../../lib/backend-logger";
 
 type PasswordResetRequester = (email: string, ip: string, requestId: string) => Promise<PasswordResetRequestState>;
 type FailureLogger = (requestId: string, error: unknown) => void;
 
 function logRequestFailure(requestId: string, error: unknown, event = "request_failed") {
-  const errorCode = error && typeof error === "object" && "code" in error ? String(error.code) : undefined;
-  const errorName = error instanceof Error ? error.name : "UnknownError";
-  console.error({ event: `password_recovery.${event}`, requestId, errorName, errorCode });
+  logBackendEvent(`password_recovery.${event}`, {
+    requestId,
+    ...getSafeBackendErrorFields(error),
+  }, "error", "password_recovery");
 }
 
 export function createRequestOtpHandler(

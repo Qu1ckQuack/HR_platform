@@ -6,24 +6,13 @@ import { db } from "./db";
 import { getAuthIpAddressOptions } from "./auth-ip-config";
 import { getAuthRuntimeConfig } from "./auth-runtime-config";
 import { consumeAuthRateLimit } from "./auth-rate-limit-storage";
+import { getBetterAuthSecret } from "./auth-secret";
 
 const { backendUrl, frontendUrl } = getAuthRuntimeConfig();
 
-const authSecret =
-  process.env.BETTER_AUTH_SECRET ??
-  (process.env.NODE_ENV !== "production"
-    ? "local-development-secret-change-me-32-chars"
-    : process.env.NEXT_PHASE === "phase-production-build"
-      ? "build-only-secret-set-the-environment-variable"
-      : "");
-
-if (!authSecret) {
-  throw new Error("BETTER_AUTH_SECRET must be set in production.");
-}
-
 export const auth = betterAuth({
   baseURL: backendUrl,
-  secret: authSecret,
+  secret: getBetterAuthSecret(),
   database: drizzleAdapter(db, { provider: "pg" }),
   databaseHooks: authDatabaseHooks,
   user: {

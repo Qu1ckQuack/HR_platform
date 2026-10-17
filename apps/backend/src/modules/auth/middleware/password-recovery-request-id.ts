@@ -8,6 +8,6 @@ declare module "express-serve-static-core" {
 }
 
 export const assignRecoveryRequestId: RequestHandler = (request, _response, next) => {
-  request.recoveryRequestId = randomUUID();
+  request.recoveryRequestId = request.backendRequestId ?? randomUUID();
   next();
 };

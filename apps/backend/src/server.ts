@@ -4,6 +4,15 @@ import swaggerUi from "swagger-ui-express";
 import { config } from "dotenv";
 import path from "node:path";
 import { requireDatabaseUrl } from "./lib/database-connection-config";
+import { getSafeBackendErrorFields, logBackendEvent } from "./lib/backend-logger";
+import { logBackendRequests, logUnhandledBackendErrors } from "./lib/request-logging";
+
+process.on("uncaughtExceptionMonitor", (error, origin) => {
+  logBackendEvent("process_uncaught_exception", {
+    origin,
+    ...getSafeBackendErrorFields(error),
+  }, "error", "process");
+});
 
 config({ path: path.resolve(process.cwd(), "../../.env.local") });
 config({ path: path.resolve(process.cwd(), "../../.env") });
@@ -25,10 +34,11 @@ const { assertAuthRateLimitStorageReady } = await import("./lib/auth-rate-limit-
 await assertAuthRateLimitStorageReady();
 
 const app = express();
+app.use(logBackendRequests);
 const { openApiDocument } = await import("./openapi");
 const port = Number(process.env.PORT ?? 4000);
 
-app.use(cors({ origin: frontendUrl, credentials: true }));
+app.use(cors({ origin: frontendUrl, credentials: true, exposedHeaders: ["X-Request-Id"] }));
 app.get("/health", (_request, response) => response.json({ status: "ok" }));
 app.get("/openapi.json", (_request, response) => response.json(openApiDocument));
 app.get("/docs", (_request, response) => response.redirect(307, "/docs/index"));
@@ -39,7 +49,8 @@ app.use("/api/auth/password/reset", passwordRecoveryRouter);
 app.all("/api/auth/*splat", toNodeHandler(auth));
 app.use(express.json({ limit: "1mb" }));
 app.use("/api/employees", employeeRouter);
+app.use(logUnhandledBackendErrors);
 
 app.listen(port, () => {
-  console.info(`HR backend listening on port ${port}`);
+  logBackendEvent("backend_listening", { port }, "info", "startup");
 });

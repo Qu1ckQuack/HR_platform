@@ -1,10 +1,11 @@
 import type { RequestHandler } from "express";
 import { randomUUID } from "node:crypto";
 import { completePasswordReset } from "../services/password-reset-completion";
+import { parseRecoveryEmail } from "../services/password-reset-address";
 import { requestPasswordReset, verifyPasswordResetEmail } from "../services/password-reset-request";
 import type { PasswordResetRequestState } from "../services/password-reset-requester";
 
-type PasswordResetRequester = (contact: string, ip: string, requestId: string) => Promise<PasswordResetRequestState>;
+type PasswordResetRequester = (email: string, ip: string, requestId: string) => Promise<PasswordResetRequestState>;
 type FailureLogger = (requestId: string, error: unknown) => void;
 
 function logRequestFailure(requestId: string, error: unknown, event = "request_failed") {
@@ -20,31 +21,30 @@ export function createRequestOtpHandler(
 ): RequestHandler {
   return async (request, response) => {
     const requestId = request.recoveryRequestId ?? createRequestId();
-    const contact = String(request.body?.contact ?? "").trim();
-    const validEmail = contact.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact);
-    const phoneDigits = contact.replace(/\D/g, "");
-    if (!validEmail && phoneDigits.length !== 10) {
-      response.status(400).json({ error: "Enter a valid email address or 10-digit phone number.", requestId });
+    const email = String(request.body?.email ?? "").trim();
+    const recoveryEmail = parseRecoveryEmail(email);
+    if (!recoveryEmail) {
+      response.status(400).json({ error: "กรุณากรอกอีเมลให้ถูกต้อง เช่น name@example.com", requestId });
       return;
     }
     try {
-      const result = await requester(validEmail ? contact : phoneDigits, request.ip ?? "unknown", requestId);
+      const result = await requester(recoveryEmail, request.ip ?? "unknown", requestId);
       if (result === "not_found") {
-        response.status(202).json({ message: "If the contact matches an active HR employee, a code will be sent to the registered email.", requestId });
+        response.status(404).json({ error: "ไม่พบอีเมลนี้ในบัญชีพนักงาน HR ที่ใช้งานอยู่ กรุณาตรวจสอบอีเมลที่ลงทะเบียนกับ HR หรือติดต่อผู้ดูแลระบบ", requestId });
         return;
       }
       if (result === "rate_limited") {
-        response.status(429).json({ error: "Too many OTP requests. Please wait 15 minutes before trying again.", requestId });
+        response.status(429).json({ error: "ขอรหัส OTP หลายครั้งเกินไป กรุณารอ 15 นาทีแล้วลองใหม่", requestId });
         return;
       }
       if (result === "delivery_failed") {
-        response.status(202).json({ message: "If the contact matches an active HR employee, a code will be sent to the registered email.", requestId });
+        response.status(503).json({ error: "ระบบส่งอีเมลไม่สำเร็จ กรุณาลองใหม่ภายหลัง หากยังมีปัญหา โปรดติดต่อผู้ดูแลระบบพร้อมแจ้งรหัสอ้างอิง", requestId });
         return;
       }
-      response.status(202).json({ message: "If the contact matches an active HR employee, a code will be sent to the registered email.", requestId });
+      response.status(202).json({ message: "ส่งรหัส OTP แล้ว กรุณาตรวจสอบกล่องจดหมายและอีเมลขยะ รหัสมีอายุ 10 นาที", requestId });
     } catch (error) {
       logFailure(requestId, error);
-      response.status(503).json({ error: "Unable to process the request right now. Please try again later.", requestId });
+      response.status(503).json({ error: "ระบบขอรหัส OTP ขัดข้องชั่วคราว กรุณาลองอีกครั้ง หากยังพบปัญหา โปรดติดต่อผู้ดูแลระบบพร้อมแจ้งรหัสอ้างอิง", requestId });
     }
   };
 }
@@ -54,15 +54,15 @@ export const requestOtp = createRequestOtpHandler();
 export const verifyOtp: RequestHandler = async (request, response) => {
   const requestId = request.recoveryRequestId ?? randomUUID();
   try {
-    const token = await verifyPasswordResetEmail(String(request.body?.contact ?? "").trim(), String(request.body?.code ?? "").trim());
+    const token = await verifyPasswordResetEmail(String(request.body?.email ?? "").trim(), String(request.body?.code ?? "").trim());
     if (!token) {
-      response.status(400).json({ error: "The email code is invalid or expired.", requestId });
+      response.status(400).json({ error: "รหัส OTP ไม่ถูกต้อง หมดอายุ หรือถูกใช้ไปแล้ว กรุณาตรวจสอบรหัสหรือขอรหัสใหม่", requestId });
       return;
     }
     response.json({ authToken: token, requestId });
   } catch (error) {
     logRequestFailure(requestId, error, "otp_verification_failed");
-    response.status(503).json({ error: "Unable to verify the code right now. Please try again later.", requestId });
+    response.status(503).json({ error: "ระบบตรวจสอบรหัส OTP ขัดข้องชั่วคราว กรุณาลองอีกครั้งพร้อมแจ้งรหัสอ้างอิงแก่ผู้ดูแลหากยังพบปัญหา", requestId });
   }
 };
 
@@ -77,12 +77,16 @@ export const completeReset: RequestHandler = async (request, response) => {
     return null;
   });
   if (result === null) {
-    response.status(503).json({ error: "Unable to reset the password right now. Please try again later.", requestId });
+    response.status(503).json({ error: "ระบบเปลี่ยนรหัสผ่านขัดข้องชั่วคราว กรุณาลองอีกครั้งพร้อมแจ้งรหัสอ้างอิงแก่ผู้ดูแลหากยังพบปัญหา", requestId });
     return;
   }
-  if (!result) {
-    response.status(400).json({ error: "The recovery code or password details are invalid or expired.", requestId });
+  if (result === "invalid_password") {
+    response.status(400).json({ error: "รหัสผ่านใหม่ต้องมีความยาว 12–200 ตัวอักษร และต้องตรงกับช่องยืนยันรหัสผ่าน", requestId });
     return;
   }
-  response.json({ message: "Password reset successfully. Sign in with your new password.", requestId });
+  if (result === "invalid_token") {
+    response.status(400).json({ error: "ขั้นตอนยืนยันรหัสหมดอายุหรือไม่ถูกต้อง กรุณาเริ่มรีเซ็ตรหัสผ่านใหม่", requestId });
+    return;
+  }
+  response.json({ message: "เปลี่ยนรหัสผ่านสำเร็จแล้ว กรุณาเข้าสู่ระบบด้วยรหัสผ่านใหม่", requestId });
 };

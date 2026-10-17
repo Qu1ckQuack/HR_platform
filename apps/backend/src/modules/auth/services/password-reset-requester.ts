@@ -1,7 +1,7 @@
 export type PasswordResetRequestState = "sent" | "not_found" | "rate_limited" | "delivery_failed";
 
 export type PasswordResetRequesterDependencies = {
-  findAccount: (contact: string) => Promise<{ id: string; email: string } | null>;
+  findAccount: (email: string) => Promise<{ id: string; email: string } | null>;
   saveOtp: (record: { userId: string; hash: string; expiresAt: Date }) => Promise<void>;
   sendEmail: (email: string, code: string) => Promise<void>;
   deleteOtp: (userId: string, hash: string) => Promise<void>;
@@ -19,9 +19,9 @@ export function createPasswordResetRequester(
   const maxRequests = options.maxRequests ?? 5;
   const windowMs = options.windowMs ?? 15 * 60_000;
 
-  return async (contact: string, ip: string, requestId: string): Promise<PasswordResetRequestState> => {
-    const normalizedContact = contact.trim().toLowerCase();
-    const key = `${ip}:${normalizedContact}`;
+  return async (email: string, ip: string, requestId: string): Promise<PasswordResetRequestState> => {
+    const lookupEmail = email.trim().toLowerCase();
+    const key = `${ip}:${lookupEmail}`;
     const now = dependencies.now().getTime();
     if (attempts.size > 10_000) {
       for (const [attemptKey, attempt] of attempts) {
@@ -41,7 +41,7 @@ export function createPasswordResetRequester(
 
     let account: Awaited<ReturnType<PasswordResetRequesterDependencies["findAccount"]>>;
     try {
-      account = await dependencies.findAccount(normalizedContact);
+      account = await dependencies.findAccount(lookupEmail);
     } catch (error) {
       dependencies.log("account_lookup_failed", requestId, error);
       throw error;

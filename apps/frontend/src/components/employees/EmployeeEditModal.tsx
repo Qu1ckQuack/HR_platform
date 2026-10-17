@@ -360,7 +360,9 @@ export function EmployeeEditModal({
                   label="บัญชีธนาคาร"
                   required={!employee || !employee.bankAccount}
                   value={form.bankAccount}
-                  placeholder={employee?.bankAccount ? "เว้นว่างเพื่อคงข้อมูลเดิม" : "กรอกเลขบัญชี"}
+                  placeholder={employee?.bankAccount ? "เว้นว่างเพื่อคงข้อมูลเดิม" : "กรอกเลขบัญชี ไม่เกิน 15 หลัก"}
+                  inputMode="numeric"
+                  maxLength={15}
                   onChange={(value) => setField("bankAccount", value)}
                 />
                 <FormInput

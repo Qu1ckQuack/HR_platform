@@ -27,6 +27,7 @@ import type { ContractType, EmployeeUpdate } from "@hr-platform/shared/types/emp
 import type { NotificationData } from "@hr-platform/shared/types/notification-type";
 import { isThaiName } from "@hr-platform/shared/lib/thai-name";
 import { maskSensitiveValue, normalizeNationalIdFormatting, preserveSensitiveValue } from "./sensitive-value";
+import { getBankAccountValidationError } from "./bank-account-validation";
 
 const PAGE_SIZE = 10;
 const prefixes = new Set(["นาย", "นางสาว", "นาง"]);
@@ -355,8 +356,8 @@ function validateEmployeeInput(values: EmployeeUpdate) {
   if (values.supervisorEmployeeId && !employeeCodePattern.test(values.supervisorEmployeeId)) {
     return "ผู้บังคับบัญชาไม่ถูกต้อง";
   }
-  if (!values.bankAccount) return "กรุณากรอกบัญชีธนาคาร";
-  if (!/^\d{10}$/.test(values.bankAccount)) return "เลขบัญชีธนาคารต้องเป็นตัวเลข 10 หลัก";
+  const bankAccountError = getBankAccountValidationError(values.bankAccount);
+  if (bankAccountError) return bankAccountError;
   if (!values.location) return "กรุณากรอกที่อยู่";
   if (!isEmail(values.personalEmail)) return "กรุณากรอกอีเมลส่วนตัวให้ถูกต้อง";
   if (!values.salary) return "กรุณากรอกค่าตอบแทน/เงินเดือน";

@@ -13,8 +13,8 @@ export async function sendResetOtpEmail(email: string, code: string) {
   const { error } = await new Resend(apiKey).emails.send({
     from,
     to: [email],
-    subject: "HR Platform password reset code",
-    text: `Your password reset code is ${code}. It expires in 10 minutes. If you did not request this, ignore this email.`,
+    subject: "รหัส OTP สำหรับรีเซ็ตรหัสผ่าน HR Platform",
+    text: `รหัส OTP สำหรับรีเซ็ตรหัสผ่านของคุณคือ ${code}\nรหัสนี้มีอายุ 10 นาที\nหากคุณไม่ได้ร้องขอรีเซ็ตรหัสผ่าน โปรดเพิกเฉยต่ออีเมลฉบับนี้`,
   });
   if (error) throw new Error(`Resend email delivery failed: ${error.message}`);
 }

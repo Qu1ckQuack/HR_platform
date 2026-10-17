@@ -40,9 +40,9 @@ async function main() {
     await migrate(db, { migrationsFolder: "./drizzle" });
     await clearLocalDatabase(db);
     const constraint = await db.$client.query<{ found: boolean }>(`SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PersonalData_bankAccount_check') AS found`);
-    if (!constraint.rows[0]?.found) await db.$client.query(`ALTER TABLE "PersonalData" ADD CONSTRAINT "PersonalData_bankAccount_check" CHECK ("bankAccount" ~ '^[0-9]{10}$')`);
+    if (!constraint.rows[0]?.found) await db.$client.query(`ALTER TABLE "PersonalData" ADD CONSTRAINT "PersonalData_bankAccount_check" CHECK ("bankAccount" ~ '^[0-9]{1,15}$')`);
     await seedEmployees(db, adminEmail);
-    const counts = await db.$client.query<{ employees: number; personal: number; contracts: number; invalid_banks: number }>(`SELECT (SELECT count(*)::int FROM "Employees") employees, (SELECT count(*)::int FROM "PersonalData") personal, (SELECT count(*)::int FROM "Contract") contracts, (SELECT count(*)::int FROM "PersonalData" WHERE "bankAccount" !~ '^[0-9]{10}$') invalid_banks`);
+    const counts = await db.$client.query<{ employees: number; personal: number; contracts: number; invalid_banks: number }>(`SELECT (SELECT count(*)::int FROM "Employees") employees, (SELECT count(*)::int FROM "PersonalData") personal, (SELECT count(*)::int FROM "Contract") contracts, (SELECT count(*)::int FROM "PersonalData" WHERE "bankAccount" !~ '^[0-9]{1,15}$') invalid_banks`);
     const result = counts.rows[0];
     if (result?.employees !== 30 || result.personal !== 30 || result.contracts !== 30 || result.invalid_banks !== 0) throw new Error("Seed validation failed. Check the database before continuing.");
     console.log("Reset local hr_platform and verified 30 complete employee, personal-data, and contract records.");

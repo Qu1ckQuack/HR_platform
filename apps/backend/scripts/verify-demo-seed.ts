@@ -23,7 +23,7 @@ async function main() {
         (SELECT count(*)::int FROM "Position") positions,
         (SELECT count(*)::int FROM "User" WHERE lower(email) = lower($1) AND role = $2 AND "emailVerified") admins,
         (SELECT count(*)::int FROM "Employees" WHERE coalesce("nickName", '') = '' OR coalesce("fullNameEn", '') = '' OR coalesce("businessEmail", '') = '' OR coalesce("sex", '') = '') missing_employee_fields,
-        (SELECT count(*)::int FROM "PersonalData" WHERE "bankAccount" !~ '^[0-9]{10}$') invalid_banks,
+        (SELECT count(*)::int FROM "PersonalData" WHERE "bankAccount" !~ '^[0-9]{1,15}$') invalid_banks,
         (SELECT count(*)::int FROM "PersonalData" WHERE "citizenId" !~ '^[0-9]{13}$') invalid_ids,
         (SELECT count(*)::int FROM "PersonalData" WHERE "phone" !~ '^[0-9]{3}-[0-9]{3}-[0-9]{4}$') invalid_phones,
         (SELECT count(*)::int FROM "PersonalData" WHERE coalesce("socialSecurity", '') = '' OR coalesce("providentFund", '') = '' OR coalesce("taxDeductions"::text, '') = '' OR coalesce("religion", '') = '' OR coalesce("disability", '') = '' OR coalesce("criminalRecord", '') = '' OR coalesce("salary"::text, '') = '' OR coalesce("location", '') = '' OR coalesce("email", '') = '') missing_personal_fields

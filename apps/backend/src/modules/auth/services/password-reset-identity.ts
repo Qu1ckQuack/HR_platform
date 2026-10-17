@@ -2,13 +2,13 @@ import { and, eq, ilike, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "../../../lib/db";
 import { user } from "../../../db/auth-schema";
 import { employees, employmentContracts, personalInfo, positionHistories, positions } from "../../../db/business-schema";
+import { parseRecoveryEmail } from "./password-reset-address";
 
-export async function findHrAccount(contact: string) {
-  const isEmail = contact.includes("@");
-  const normalized = isEmail ? contact.trim().toLowerCase() : contact.replace(/\D/g, "");
-  const contactMatch = isEmail
-    ? or(sql`lower(${employees.companyEmail}) = ${normalized}`, sql`lower(${personalInfo.email}) = ${normalized}`)
-    : sql`regexp_replace(coalesce(${personalInfo.phone}, ''), '\\D', '', 'g') = ${normalized}`;
+export async function findHrAccount(email: string) {
+  const recoveryEmail = parseRecoveryEmail(email);
+  if (!recoveryEmail) return null;
+
+  const emailMatch = or(sql`lower(${employees.companyEmail}) = ${recoveryEmail}`, sql`lower(${personalInfo.email}) = ${recoveryEmail}`);
   const [record] = await db.select({ id: user.id, email: user.email })
     .from(employees)
     .innerJoin(user, eq(user.employeeId, employees.id))
@@ -18,9 +18,9 @@ export async function findHrAccount(contact: string) {
     .leftJoin(personalInfo, eq(personalInfo.employeeId, employees.id))
     .where(and(
       isNull(employees.deletedAt),
-      contactMatch,
+      emailMatch,
       or(ilike(positions.positionName, "%hr%"), ilike(positions.positionName, "%บุคคล%")),
     ))
     .limit(1);
-  return record;
+  return record ?? null;
 }

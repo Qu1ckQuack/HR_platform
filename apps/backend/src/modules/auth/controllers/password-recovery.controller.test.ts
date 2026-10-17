@@ -18,35 +18,30 @@ function responseStub() {
   };
 }
 
-test("keeps OTP request responses generic to avoid revealing account existence", async () => {
-  const expectedStatuses = { not_found: 202, rate_limited: 429, delivery_failed: 202, sent: 202 } as const;
-  let genericMessage: string | undefined;
+test("returns actionable Thai messages for OTP request outcomes", async () => {
+  const expectedStatuses = { not_found: 404, rate_limited: 429, delivery_failed: 503, sent: 202 } as const;
   for (const [state, expectedStatus] of Object.entries(expectedStatuses) as [keyof typeof expectedStatuses, number][]) {
     const handler = createRequestOtpHandler(async () => state, () => "request-test");
     const response = responseStub();
-    await handler({ body: { contact: "hr@example.test" }, ip: "192.0.2.10" } as Request, response as unknown as Response, () => {});
-    assert.equal(response.statusCode, expectedStatus, `${state} should not be reported as successful`);
-    assert.equal((response.body as { requestId: string }).requestId, "request-test");
-    if (expectedStatus === 202) {
-      const message = (response.body as { message: string }).message;
-      genericMessage ??= message;
-      assert.equal(message, genericMessage);
-    } else {
-      assert.ok((response.body as { error?: string }).error);
-    }
+    await handler({ body: { email: "hr@example.test" }, ip: "192.0.2.10" } as Request, response as unknown as Response, () => {});
+    assert.equal(response.statusCode, expectedStatus, `${state} should have its own status`);
+    const body = response.body as { error?: string; message?: string; requestId: string };
+    assert.equal(body.requestId, "request-test");
+    assert.ok(body.error ?? body.message);
+    assert.match(body.error ?? body.message ?? "", /[\u0E00-\u0E7F]/, `${state} response should be Thai`);
   }
 });
 
-test("rejects malformed contact without calling the requester", async () => {
+test("rejects non-email reset identifiers without calling the requester", async () => {
   let called = false;
   const handler = createRequestOtpHandler(async () => { called = true; return "sent"; }, () => "request-test");
-  const response = responseStub();
-
-  await handler({ body: { contact: "not a contact" } } as Request, response as unknown as Response, () => {});
-
+  for (const email of ["not-an-email", "081-234-5678", "EMP00002", "Ed3BVIUd2d4G718yw20MmahySjSfP4GI"]) {
+    const response = responseStub();
+    await handler({ body: { email } } as Request, response as unknown as Response, () => {});
+    assert.equal(response.statusCode, 400, `${email} must be rejected`);
+    assert.equal((response.body as { requestId: string }).requestId, "request-test");
+  }
   assert.equal(called, false);
-  assert.equal(response.statusCode, 400);
-  assert.equal((response.body as { requestId: string }).requestId, "request-test");
 });
 
 test("maps request processing errors to a sanitized response with a trace id", async () => {
@@ -58,11 +53,11 @@ test("maps request processing errors to a sanitized response with a trace id", a
   );
   const response = responseStub();
 
-  await handler({ body: { contact: "hr@example.test" }, ip: "192.0.2.11" } as Request, response as unknown as Response, () => {});
+  await handler({ body: { email: "hr@example.test" }, ip: "192.0.2.11" } as Request, response as unknown as Response, () => {});
 
   assert.equal(response.statusCode, 503);
   assert.deepEqual(response.body, {
-    error: "Unable to process the request right now. Please try again later.",
+    error: "ระบบขอรหัส OTP ขัดข้องชั่วคราว กรุณาลองอีกครั้ง หากยังพบปัญหา โปรดติดต่อผู้ดูแลระบบพร้อมแจ้งรหัสอ้างอิง",
     requestId: "request-test",
   });
   assert.deepEqual(logs, ["request-test:private database detail"]);

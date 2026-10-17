@@ -8,6 +8,7 @@
   placeholder?: string;
   inputMode?: "text" | "numeric" | "email" | "tel" | "decimal";
   min?: string;
+  maxLength?: number;
   step?: string;
   onChange?: (value: string) => void;
 };
@@ -22,6 +23,7 @@ export function FormInput({
   placeholder,
   inputMode,
   min,
+  maxLength,
   step,
   onChange,
 }: FormInputProps) {
@@ -37,6 +39,7 @@ export function FormInput({
         placeholder={placeholder}
         inputMode={inputMode}
         min={min}
+        maxLength={maxLength}
         step={step}
         onChange={(event) => onChange?.(event.target.value)}
         className={`mt-1 min-h-11 w-full rounded-md border border-slate-300 px-3 font-normal outline-none focus:border-[#2867b4] ${readOnly && readOnlyBackground ? "read-only:bg-slate-100" : ""}`}

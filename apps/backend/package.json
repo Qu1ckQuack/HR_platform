@@ -9,7 +9,7 @@
     "start": "tsx src/server.ts",
     "lint": "eslint src scripts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "tsx --test src/lib/role-guard.test.ts src/lib/auth-ip-config.test.ts src/lib/auth-runtime-config.test.ts src/lib/rate-limit-retry.test.ts src/lib/database-connection-config.test.ts src/modules/auth/services/password-reset-requester.test.ts src/modules/auth/services/password-reset-email.test.ts src/modules/auth/controllers/password-recovery.controller.test.ts src/modules/auth/middleware/password-recovery-error-handler.test.ts src/modules/employees/services/sensitive-value.test.ts",
+    "test": "tsx --test src/lib/role-guard.test.ts src/lib/auth-ip-config.test.ts src/lib/auth-runtime-config.test.ts src/lib/rate-limit-retry.test.ts src/lib/database-connection-config.test.ts src/modules/auth/services/password-reset-address.test.ts src/modules/auth/services/password-reset-requester.test.ts src/modules/auth/services/password-reset-email.test.ts src/modules/auth/controllers/password-recovery.controller.test.ts src/modules/auth/middleware/password-recovery-error-handler.test.ts src/modules/employees/services/bank-account-validation.test.ts src/modules/employees/services/sensitive-value.test.ts src/modules/employees/services/employee-import-row.test.ts",
     "db:generate": "drizzle-kit generate",
     "db:ensure": "tsx scripts/ensure-database.ts",
     "db:migrate": "drizzle-kit migrate",

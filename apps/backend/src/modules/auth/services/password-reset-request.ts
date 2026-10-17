@@ -1,6 +1,7 @@
 import { and, eq, isNull, lt, sql } from "drizzle-orm";
 import { db } from "../../../lib/db";
 import { passwordResetRecovery } from "../../../db/auth-schema";
+import { parseRecoveryEmail } from "./password-reset-address";
 import { findHrAccount } from "./password-reset-identity";
 import { sendResetOtpEmail } from "./password-reset-email";
 import { createEmailCode, createRecoveryToken, hashRecoveryValue, matchesRecoveryValue } from "./password-reset-crypto";
@@ -52,8 +53,9 @@ export const requestPasswordReset = createPasswordResetRequester({
   },
 });
 
-export async function verifyPasswordResetEmail(contact: string, code: string) {
-  const account = await findHrAccount(contact.trim().toLowerCase());
+export async function verifyPasswordResetEmail(email: string, code: string) {
+  const normalizedEmail = parseRecoveryEmail(email);
+  const account = normalizedEmail ? await findHrAccount(normalizedEmail) : null;
   if (!account || !/^\d{6}$/.test(code)) return null;
   const [record] = await db.select().from(passwordResetRecovery)
     .where(eq(passwordResetRecovery.userId, account.id)).limit(1);

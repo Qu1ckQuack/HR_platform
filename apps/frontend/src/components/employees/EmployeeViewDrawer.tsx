@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Employee } from "@hr-platform/shared/types/employee";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { InfoSection } from "@/components/ui/InfoSection";
+import { formatCitizenIdDisplay, formatPhoneDisplay } from "./utils/format-input";
 
 export type EmployeeViewDrawerProps = {
   employee: Employee;
@@ -16,24 +17,63 @@ export function EmployeeViewDrawer({
   close,
   edit,
 }: EmployeeViewDrawerProps) {
-  const [sensitive, setSensitive] = useState<{ nationalId: string; bankAccount: string } | null>(null);
+  const [sensitive, setSensitive] = useState<{ nationalId: string; bankAccount: string; phone: string } | null>(null);
   const [loadingSensitive, setLoadingSensitive] = useState(false);
+  const [sensitiveError, setSensitiveError] = useState("");
+  const [revealedFields, setRevealedFields] = useState<Set<"nationalId" | "phone" | "bankAccount">>(() => new Set());
 
-  async function toggleSensitive() {
-    if (sensitive) {
-      setSensitive(null);
+  async function toggleSensitive(field: "nationalId" | "phone" | "bankAccount") {
+    if (revealedFields.has(field)) {
+      setRevealedFields((current) => {
+        const next = new Set(current);
+        next.delete(field);
+        return next;
+      });
       return;
     }
+    if (sensitive) {
+      setRevealedFields((current) => new Set(current).add(field));
+      return;
+    }
+
     setLoadingSensitive(true);
+    setSensitiveError("");
     try {
       const response = await fetch(`/api/employees/${encodeURIComponent(employee.id)}/sensitive`, { credentials: "include" });
       if (!response.ok) throw new Error("Unable to reveal sensitive employee data");
       setSensitive(await response.json());
+      setRevealedFields((current) => new Set(current).add(field));
     } catch {
-      window.alert("ไม่สามารถเปิดดูข้อมูลส่วนบุคคลได้");
+      setSensitiveError("ไม่สามารถเปิดดูข้อมูลส่วนบุคคลได้");
     } finally {
       setLoadingSensitive(false);
     }
+  }
+
+  function sensitiveValue(field: "nationalId" | "phone" | "bankAccount", maskedValue: string) {
+    const isRevealed = revealedFields.has(field);
+    const value = isRevealed && sensitive ? sensitive[field] : maskedValue;
+    const formattedValue = field === "nationalId"
+      ? formatCitizenIdDisplay(value)
+      : field === "phone"
+        ? formatPhoneDisplay(value)
+        : value;
+    if (!maskedValue && !formattedValue) return "-";
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        <span>{formattedValue || "-"}</span>
+        <button
+          type="button"
+          onClick={() => void toggleSensitive(field)}
+          disabled={loadingSensitive}
+          aria-label={`${isRevealed ? "ซ่อน" : "เปิดดู"}${field === "nationalId" ? "เลขบัตรประชาชน" : field === "phone" ? "โทรศัพท์" : "บัญชีธนาคาร"}`}
+          aria-pressed={isRevealed}
+          className="grid min-h-8 min-w-8 place-items-center rounded text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+        >
+          <FontAwesomeIcon icon={isRevealed ? faEyeSlash : faEye} className="h-3.5 w-3.5" />
+        </button>
+      </span>
+    );
   }
 
   return (
@@ -101,32 +141,18 @@ export function EmployeeViewDrawer({
               ["ชื่อเล่น", employee.nickname],
               ["วันเกิด", ""],
               ["สัญชาติ", ""],
-              ["เลขบัตรประชาชน", employee.citizenId],
+              ["เลขบัตรประชาชน", sensitiveValue("nationalId", employee.citizenId)],
               ["อีเมล", employee.businessEmail],
-              ["โทรศัพท์", employee.phone],
+              ["โทรศัพท์", sensitiveValue("phone", employee.phone)],
               ["ผู้ติดต่อฉุกเฉิน", employee.emergencyContactName],
             ]}
           />
-          <button
-            type="button"
-            onClick={toggleSensitive}
-            disabled={loadingSensitive}
-            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 disabled:opacity-50"
-          >
-            <FontAwesomeIcon icon={sensitive ? faEyeSlash : faEye} className="mr-2 h-4 w-4" />
-            {loadingSensitive ? "กำลังโหลด�" : sensitive ? "ซ่อนข้อมูลสำคัญ" : "เปิดดูเลขบัตรประชาชนและบัญชีธนาคาร"}
-          </button>
-          {sensitive && (
-            <div className="grid gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm sm:grid-cols-2">
-              <p><span className="font-medium">เลขบัตรประชาชน:</span> {sensitive.nationalId}</p>
-              <p><span className="font-medium">บัญชีธนาคาร:</span> {sensitive.bankAccount}</p>
-            </div>
-          )}
+          {sensitiveError && <p role="alert" className="text-sm text-red-600">{sensitiveError}</p>}
           <InfoSection
             title="การเงิน & สิทธิประโยชน์"
             columns={3}
             items={[
-              ["บัญชีธนาคาร", ""],
+              ["บัญชีธนาคาร", sensitiveValue("bankAccount", employee.bankAccount)],
               ["ประกันสังคม", ""],
               ["กองทุนสำรองเลี้ยงชีพ", ""],
               ["ลดหย่อนภาษีเพิ่มเติม", employee.taxAllowance],

@@ -10,6 +10,8 @@ This repository is an npm-workspaces monorepo for an HR management application:
 
 Database schema and migrations are in `apps/backend/drizzle`. Workspace commands are defined in the root `package.json`; database setup runs through `npm run db:setup`.
 
+For deployment, host the Next.js frontend on Vercel and run the Express API as a Node.js container using `apps/backend/Dockerfile`. The frontend proxies `/api` requests to the backend origin; keeping the API outside Vercel Functions preserves the employee import path beyond the Functions request-body limit. See `docs/deployment-vercel.md` for environment configuration and preview checks.
+
 ## Authentication and database notes
 
 - Better Auth is configured in `apps/backend/src/lib/auth.ts`.

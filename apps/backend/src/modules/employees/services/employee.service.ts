@@ -26,6 +26,7 @@ import {
 import type { ContractType, EmployeeUpdate } from "@hr-platform/shared/types/employee";
 import type { NotificationData } from "@hr-platform/shared/types/notification-type";
 import { isThaiName } from "@hr-platform/shared/lib/thai-name";
+import { maskSensitiveValue, normalizeNationalIdFormatting, preserveSensitiveValue } from "./sensitive-value";
 
 const PAGE_SIZE = 10;
 const prefixes = new Set(["นาย", "นางสาว", "นาง"]);
@@ -164,9 +165,9 @@ export async function updateEmployee(actorId: string, id: string, input: unknown
   if (!privateValues) throw new EmployeeServiceError("Employee not found", 404);
   const values = prepareEmployeeInput({
     ...body,
-    citizenId: String(body.citizenId ?? "").trim() || privateValues.nationalId,
-    bankAccount: String(body.bankAccount ?? "").trim() || privateValues.bankAccount,
-    phone: String(body.phone ?? "").trim() || privateValues.phone || "",
+    citizenId: preserveSensitiveValue(body.citizenId, privateValues.nationalId),
+    bankAccount: preserveSensitiveValue(body.bankAccount, privateValues.bankAccount),
+    phone: preserveSensitiveValue(body.phone, privateValues.phone),
   });
   if (values.supervisorEmployeeId === id) {
     throw new EmployeeServiceError("ไม่สามารถตั้งพนักงานเป็นผู้บังคับบัญชาของตนเองได้", 400);
@@ -300,7 +301,7 @@ function normalizeEmployeeInput(input: unknown): EmployeeUpdate {
     firstNameThai: String(body.firstNameThai ?? "").trim(),
     lastNameThai: String(body.lastNameThai ?? "").trim(),
     englishName: String(body.englishName ?? "").trim(),
-    citizenId: String(body.citizenId ?? "").replace(/\D/g, ""),
+    citizenId: normalizeNationalIdFormatting(body.citizenId),
     bankAccount: String(body.bankAccount ?? "").trim(),
     location: String(body.location ?? "").trim(),
     personalEmail: String(body.personalEmail ?? "").trim().toLowerCase(),
@@ -449,9 +450,7 @@ function serializeEmployee(row: Awaited<ReturnType<typeof findEmployeesWithCurre
 }
 
 function maskValue(value: string, visibleDigits: number) {
-  if (!value) return "";
-  const visible = value.slice(-visibleDigits);
-  return `${"x".repeat(Math.max(4, value.length - visibleDigits))}${visible}`;
+  return maskSensitiveValue(value, visibleDigits);
 }
 
 function daysUntil(dateValue: string) {

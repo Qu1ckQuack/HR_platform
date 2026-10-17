@@ -22,6 +22,7 @@ import { EmployeeEditModal } from "@/components/employees/EmployeeEditModal";
 import { EmployeeViewDrawer } from "@/components/employees/EmployeeViewDrawer";
 import { EmployeeHistoryModal } from "@/components/employees/EmployeeHistoryModal";
 import { EmployeeDeleteModal } from "@/components/employees/EmployeeDeleteModal";
+import { EmployeeTrashModal } from "@/components/employees/EmployeeTrashModal";
 import type { EmployeeFormOptions } from "@/components/employees/form/types";
 import type { EmployeeEditForm } from "@/components/employees/form/types";
 import type { ImportDraft } from "@/components/employees/ImportEmployeesButton";
@@ -74,6 +75,7 @@ export default function EmployeePage() {
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [isTrashOpen, setIsTrashOpen] = useState(false);
 
   useEffect(() => {
     let isCurrent = true;
@@ -157,6 +159,7 @@ export default function EmployeePage() {
     <main className="min-h-screen bg-[#f4f7fa] text-slate-700">
       <EmployeeHeader
         onRefreshEmployees={refreshEmployees}
+        onShowTrash={() => setIsTrashOpen(true)}
         onNavigateToLogin={() => router.push("/login")}
       />
       <section className="p-3 sm:p-6">
@@ -281,6 +284,12 @@ export default function EmployeePage() {
             setDeleteTarget(null);
             setDeleteError("");
           }}
+        />
+      )}
+      {isTrashOpen && (
+        <EmployeeTrashModal
+          onClose={() => setIsTrashOpen(false)}
+          onRestored={refreshEmployees}
         />
       )}
     </main>

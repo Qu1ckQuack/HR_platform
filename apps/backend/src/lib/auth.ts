@@ -4,7 +4,10 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { authDatabaseHooks } from "./auth-database-hooks";
 import { db } from "./db";
 import { getAuthIpAddressOptions } from "./auth-ip-config";
+import { getAuthRuntimeConfig } from "./auth-runtime-config";
 import { consumeAuthRateLimit } from "./auth-rate-limit-storage";
+
+const { backendUrl, frontendUrl } = getAuthRuntimeConfig();
 
 const authSecret =
   process.env.BETTER_AUTH_SECRET ??
@@ -19,7 +22,7 @@ if (!authSecret) {
 }
 
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:4000",
+  baseURL: backendUrl,
   secret: authSecret,
   database: drizzleAdapter(db, { provider: "pg" }),
   databaseHooks: authDatabaseHooks,
@@ -47,8 +50,8 @@ export const auth = betterAuth({
     },
   },
   trustedOrigins: [
-    process.env.FRONTEND_URL ?? "http://localhost:3000",
-    process.env.BETTER_AUTH_URL ?? "http://localhost:4000",
+    frontendUrl,
+    backendUrl,
   ],
   advanced: {
     ipAddress: getAuthIpAddressOptions(),

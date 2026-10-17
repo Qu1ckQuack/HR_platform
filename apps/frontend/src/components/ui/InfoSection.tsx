@@ -4,7 +4,7 @@
   columns = 2,
 }: {
   title: string;
-  items: string[][];
+  items: Array<[string, import("react").ReactNode]>;
   columns?: 2 | 3;
 }) {
   const gridColumns = columns === 3 ? "sm:grid-cols-2 lg:grid-cols-3" : "sm:grid-cols-2";

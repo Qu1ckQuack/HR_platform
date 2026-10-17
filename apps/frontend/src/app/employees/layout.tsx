@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { getBackendUrl } from "@/lib/backend-url";
 
 export default async function EmployeesLayout({ children }: { children: ReactNode }) {
-  const backendUrl = process.env.BACKEND_URL ?? "http://localhost:4000";
+  const backendUrl = getBackendUrl();
   const cookieHeader = (await cookies()).toString();
   const response = await fetch(`${backendUrl}/api/auth/get-session`, {
     headers: { cookie: cookieHeader },

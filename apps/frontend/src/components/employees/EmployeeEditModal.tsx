@@ -42,7 +42,9 @@ export function EmployeeEditModal({
     criminalRecord: employee?.criminalRecord ?? "",
     salary: employee?.salary ?? "",
     businessEmail: employee?.businessEmail ?? "",
-    phone: employee?.phone ?? "",
+    // Employee list data only contains a masked phone number. Keep this blank
+    // on edit so PATCH preserves the stored value instead of validating the mask.
+    phone: "",
     emergencyContactName: employee?.emergencyContactName ?? "",
     departmentId: employee?.departmentId ?? "",
     positionId: employee?.positionId ?? "",
@@ -369,7 +371,7 @@ export function EmployeeEditModal({
                 />
                 <FormInput
                   label="โทรศัพท์"
-                  placeholder="xxx-xxx-xxxx"
+                  placeholder={employee?.phone ? "เว้นว่างเพื่อคงข้อมูลเดิม" : "xxx-xxx-xxxx"}
                   inputMode="tel"
                   value={form.phone}
                   onChange={(value) => setField("phone", formatPhone(value))}

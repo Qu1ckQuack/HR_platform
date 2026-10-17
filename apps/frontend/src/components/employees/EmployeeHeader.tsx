@@ -3,16 +3,19 @@ import {
   faBars,
   faHome,
   faExpand,
+  faTrashCan,
 } from "@fortawesome/free-solid-svg-icons";
 import { EmployeeNotifications } from "./EmployeeNotifications";
 
 export type EmployeeHeaderProps = {
   onRefreshEmployees: () => void;
+  onShowTrash: () => void;
   onNavigateToLogin: () => void;
 };
 
 export function EmployeeHeader({
   onRefreshEmployees,
+  onShowTrash,
   onNavigateToLogin,
 }: EmployeeHeaderProps) {
   return (
@@ -44,6 +47,15 @@ export function EmployeeHeader({
           aria-label="Show employee"
         >
           <FontAwesomeIcon icon={faExpand} className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          title="รายการที่ลบล่าสุด (กู้คืนได้ภายใน 7 วัน)"
+          onClick={onShowTrash}
+          className="min-h-10 min-w-10 rounded text-slate-600 hover:bg-slate-100 hover:cursor-pointer"
+          aria-label="รายการพนักงานที่ถูกลบล่าสุด"
+        >
+          <FontAwesomeIcon icon={faTrashCan} className="h-4 w-4" />
         </button>
         <EmployeeNotifications onEmployeesChanged={onRefreshEmployees} />
         <button

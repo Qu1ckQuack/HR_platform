@@ -11,6 +11,8 @@ requireDatabaseUrl();
 
 const { assertAuthIpAddressOptionsConfigured } = await import("./lib/auth-ip-config");
 assertAuthIpAddressOptionsConfigured();
+const { getAuthRuntimeConfig } = await import("./lib/auth-runtime-config");
+const { frontendUrl } = getAuthRuntimeConfig();
 
 const [{ toNodeHandler }, { auth }, { passwordRecoveryRouter }, { employeeRouter }] = await Promise.all([
   import("better-auth/node"),
@@ -25,7 +27,6 @@ await assertAuthRateLimitStorageReady();
 const app = express();
 const { openApiDocument } = await import("./openapi");
 const port = Number(process.env.PORT ?? 4000);
-const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:3000";
 
 app.use(cors({ origin: frontendUrl, credentials: true }));
 app.get("/health", (_request, response) => response.json({ status: "ok" }));

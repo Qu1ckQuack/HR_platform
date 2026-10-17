@@ -21,7 +21,7 @@ router.all("/contracts/:contractId/:action", updateContract);
 router.post("/", createEmployee);
 router.post("/import", express.raw({
   type: ["text/csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
-  limit: "100mb",
+  limit: 100 * 1024 * 1024,
 }), importEmployees);
 
 export { router as employeeRouter };

@@ -22,3 +22,27 @@ export function formatPhone(value: string) {
   return formatWithGroups(value, [3, 3, 4]);
 }
 
+function formatSensitiveValue(value: string, groups: number[]) {
+  const characters = value
+    .replace(/[\s-]/g, "")
+    .replace(/[^0-9xX*•]/g, "")
+    .slice(0, groups.reduce((total, size) => total + size, 0));
+  let cursor = 0;
+  return groups
+    .map((size) => {
+      const part = characters.slice(cursor, cursor + size);
+      cursor += size;
+      return part;
+    })
+    .filter(Boolean)
+    .join("-");
+}
+
+export function formatCitizenIdDisplay(value: string) {
+  return formatSensitiveValue(value, [1, 4, 5, 2, 1]);
+}
+
+export function formatPhoneDisplay(value: string) {
+  return formatSensitiveValue(value, [3, 3, 4]);
+}
+
